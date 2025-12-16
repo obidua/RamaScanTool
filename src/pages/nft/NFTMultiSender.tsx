@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Images, Upload, Loader2, Check, AlertCircle } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface NFTTransfer {
   tokenId: string
@@ -15,6 +17,7 @@ export default function NFTMultiSender() {
   const [transfers, setTransfers] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [results, setResults] = useState<NFTTransfer[]>([])
+  const [selectedChain, setSelectedChain] = useState('1370')
 
   const parseTransfers = (): NFTTransfer[] => {
     return transfers
@@ -54,6 +57,7 @@ export default function NFTMultiSender() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">NFT MultiSender</h1>
@@ -75,14 +79,7 @@ export default function NFTMultiSender() {
                 />
               </div>
               <div>
-                <label className="input-label">Network</label>
-                <select className="input-field">
-                  <option>Ramestta</option>
-                  <option>Ethereum</option>
-                  <option>Polygon</option>
-                  <option>Arbitrum</option>
-                  <option>Base</option>
-                </select>
+                <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
               </div>
             </div>
 
@@ -138,7 +135,7 @@ export default function NFTMultiSender() {
             </div>
             <div className="stat-card">
               <p className="text-sm text-slate-400">Estimated Gas</p>
-              <p className="text-xl font-bold text-yellow-400">~0.005 ETH</p>
+              <p className="text-xl font-bold text-yellow-400">~0.001 RAMA</p>
               <p className="text-sm text-slate-500">per transfer</p>
             </div>
           </div>

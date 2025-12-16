@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { BarChart3, Play, Pause, Settings, Loader2 } from 'lucide-react'
+import { BarChart3, Play, Pause } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 export default function MarketMaker() {
   const { isConnected } = useAccount()
@@ -37,6 +38,7 @@ export default function MarketMaker() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Market Maker - Batch Swap</h1>
@@ -76,7 +78,7 @@ export default function MarketMaker() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="input-label">Min Amount (ETH)</label>
+                <label className="input-label">Min Amount (RAMA)</label>
                 <input
                   type="text"
                   name="minAmount"
@@ -86,7 +88,7 @@ export default function MarketMaker() {
                 />
               </div>
               <div>
-                <label className="input-label">Max Amount (ETH)</label>
+                <label className="input-label">Max Amount (RAMA)</label>
                 <input
                   type="text"
                   name="maxAmount"
@@ -168,11 +170,11 @@ export default function MarketMaker() {
               </div>
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Volume Generated</p>
-                <p className="text-xl font-bold text-blue-400">0 ETH</p>
+                <p className="text-xl font-bold text-blue-400">0 RAMA</p>
               </div>
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Gas Spent</p>
-                <p className="text-xl font-bold text-yellow-400">0 ETH</p>
+                <p className="text-xl font-bold text-yellow-400">0 RAMA</p>
               </div>
             </div>
           </div>

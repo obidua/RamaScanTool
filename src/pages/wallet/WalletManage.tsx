@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Wallet, Plus, Trash2, Eye, EyeOff, Copy, Download, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 interface WalletItem {
   address: string
@@ -16,7 +17,7 @@ const mockWallets: WalletItem[] = [
 ]
 
 export default function WalletManage() {
-  const [wallets, setWallets] = useState<WalletItem[]>(mockWallets)
+  const [wallets] = useState<WalletItem[]>(mockWallets)
   const [showPrivateKey, setShowPrivateKey] = useState<Record<string, boolean>>({})
 
   const copyAddress = (address: string) => {
@@ -26,6 +27,7 @@ export default function WalletManage() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

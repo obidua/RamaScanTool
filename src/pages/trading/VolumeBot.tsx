@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bot, Play, Pause, Shield, Settings, TrendingUp } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 export default function VolumeBot() {
   const { isConnected } = useAccount()
@@ -36,6 +37,7 @@ export default function VolumeBot() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-3 rounded-xl bg-purple-500/20">
@@ -200,8 +202,8 @@ export default function VolumeBot() {
             <div className="space-y-4">
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Volume Generated</p>
-                <p className="text-2xl font-bold text-purple-400">0 ETH</p>
-                <p className="text-sm text-slate-500">of {config.volumeTarget} ETH target</p>
+                <p className="text-2xl font-bold text-purple-400">0 RAMA</p>
+                <p className="text-sm text-slate-500">of {config.volumeTarget} RAMA target</p>
               </div>
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Trades Executed</p>
@@ -213,7 +215,7 @@ export default function VolumeBot() {
               </div>
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Gas Spent</p>
-                <p className="text-xl font-bold text-yellow-400">0 ETH</p>
+                <p className="text-xl font-bold text-yellow-400">0 RAMA</p>
               </div>
             </div>
           </div>

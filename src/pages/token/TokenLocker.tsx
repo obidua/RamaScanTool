@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Lock, Unlock, Clock, Coins, Loader2 } from 'lucide-react'
+import { Lock, Unlock, Clock, Loader2 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 interface LockedToken {
   id: string
@@ -21,7 +22,7 @@ export default function TokenLocker() {
   const { isConnected } = useAccount()
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create')
   const [isLocking, setIsLocking] = useState(false)
-  const [locks, setLocks] = useState<LockedToken[]>(mockLocks)
+  const [locks] = useState<LockedToken[]>(mockLocks)
   const [formData, setFormData] = useState({
     tokenAddress: '',
     amount: '',
@@ -54,6 +55,7 @@ export default function TokenLocker() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Token Locker</h1>

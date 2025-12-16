@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Search, Download, Upload, Loader2, RefreshCw } from 'lucide-react'
+import { Search, Download, Upload, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface BalanceResult {
   address: string
@@ -11,7 +13,7 @@ interface BalanceResult {
 
 export default function BatchCheckBalance() {
   const [addresses, setAddresses] = useState('')
-  const [selectedChain, setSelectedChain] = useState('1')
+  const [selectedChain, setSelectedChain] = useState('1370')
   const [isChecking, setIsChecking] = useState(false)
   const [results, setResults] = useState<BalanceResult[]>([])
 
@@ -41,6 +43,7 @@ export default function BatchCheckBalance() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Batch Check Balance</h1>
@@ -54,19 +57,10 @@ export default function BatchCheckBalance() {
           
           <div className="mb-4">
             <label className="input-label">Select Chain</label>
-            <select 
+            <NetworkSelector 
               value={selectedChain} 
-              onChange={(e) => setSelectedChain(e.target.value)}
-              className="input-field"
-            >
-              <option value="1370">Ramestta</option>
-              <option value="1">Ethereum</option>
-              <option value="56">BNB Chain</option>
-              <option value="137">Polygon</option>
-              <option value="42161">Arbitrum</option>
-              <option value="10">Optimism</option>
-              <option value="8453">Base</option>
-            </select>
+              onChange={setSelectedChain}
+            />
           </div>
 
           <div className="mb-4">

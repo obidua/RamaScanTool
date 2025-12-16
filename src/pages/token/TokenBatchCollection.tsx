@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Download, Upload, Loader2, Check, AlertCircle } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface WalletSource {
   address: string
@@ -17,6 +19,7 @@ export default function TokenBatchCollection() {
   const [wallets, setWallets] = useState('')
   const [isCollecting, setIsCollecting] = useState(false)
   const [results, setResults] = useState<WalletSource[]>([])
+  const [selectedChain, setSelectedChain] = useState('1370')
 
   const parseWallets = (): WalletSource[] => {
     return wallets
@@ -68,6 +71,7 @@ export default function TokenBatchCollection() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Token Batch Collection</h1>
@@ -90,15 +94,7 @@ export default function TokenBatchCollection() {
                 />
               </div>
               <div>
-                <label className="input-label">Network</label>
-                <select className="input-field">
-                  <option>Ramestta</option>
-                  <option>Ethereum</option>
-                  <option>BNB Chain</option>
-                  <option>Polygon</option>
-                  <option>Arbitrum</option>
-                  <option>Base</option>
-                </select>
+                <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
               </div>
             </div>
 
@@ -171,7 +167,7 @@ export default function TokenBatchCollection() {
               </div>
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Estimated Gas</p>
-                <p className="text-xl font-bold text-white">~0.005 ETH</p>
+                <p className="text-xl font-bold text-white">~0.001 RAMA</p>
                 <p className="text-sm text-slate-500">per wallet</p>
               </div>
             </div>

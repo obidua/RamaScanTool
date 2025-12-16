@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { FolderDown, Upload, Loader2, Check, AlertCircle } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface NFTCollection {
   wallet: string
@@ -16,6 +18,7 @@ export default function NFTBatchCollection() {
   const [wallets, setWallets] = useState('')
   const [isCollecting, setIsCollecting] = useState(false)
   const [results, setResults] = useState<NFTCollection[]>([])
+  const [selectedChain, setSelectedChain] = useState('1370')
 
   const parseWallets = (): NFTCollection[] => {
     return wallets
@@ -59,6 +62,7 @@ export default function NFTBatchCollection() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">NFT Batch Collection</h1>
@@ -80,14 +84,7 @@ export default function NFTBatchCollection() {
                 />
               </div>
               <div>
-                <label className="input-label">Network</label>
-                <select className="input-field">
-                  <option>Ramestta</option>
-                  <option>Ethereum</option>
-                  <option>Polygon</option>
-                  <option>Arbitrum</option>
-                  <option>Base</option>
-                </select>
+                <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
               </div>
             </div>
 

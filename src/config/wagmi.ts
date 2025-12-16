@@ -1,5 +1,4 @@
 import { http } from 'wagmi'
-import { mainnet, bsc, polygon, arbitrum, optimism, base, avalanche, linea } from 'wagmi/chains'
 import { getDefaultConfig } from '@rainbow-me/rainbowkit'
 import type { Chain } from 'wagmi/chains'
 

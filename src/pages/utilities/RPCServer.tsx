@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Server, Plus, Trash2, Copy, Check, Activity } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { SUPPORTED_CHAINS } from '../../config/wagmi'
+import BackButton from '../../components/BackButton'
 
 interface RPCEndpoint {
   id: string
@@ -76,6 +77,7 @@ export default function RPCServer() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Image, Upload, Loader2, Check } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 export default function CreateNFT() {
   const { isConnected } = useAccount()
   const [isDeploying, setIsDeploying] = useState(false)
   const [step, setStep] = useState(1)
+  const [selectedChain, setSelectedChain] = useState('1370')
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
@@ -36,6 +39,7 @@ export default function CreateNFT() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Create NFT Collection</h1>
@@ -141,14 +145,7 @@ export default function CreateNFT() {
             </div>
 
             <div>
-              <label className="input-label">Network</label>
-              <select className="input-field">
-                <option>Ramestta</option>
-                <option>Ethereum</option>
-                <option>Polygon</option>
-                <option>Arbitrum</option>
-                <option>Base</option>
-              </select>
+              <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
             </div>
 
             <div>

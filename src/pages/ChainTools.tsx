@@ -2,19 +2,20 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
 import { SUPPORTED_CHAINS } from '../config/wagmi'
 
+// Map tools to their actual routes in the app
 const chainTools = [
-  { name: 'Token MultiSender', path: 'multi-sender', badge: 'HOT' },
-  { name: 'Batch Check Balance', path: 'batch-balance', badge: null },
-  { name: 'Token Batch Collection', path: 'batch-collection', badge: 'HOT' },
-  { name: 'Multiple to Multiple Transfer', path: 'multi-transfer', badge: null },
-  { name: 'Create Token', path: 'create-token', badge: 'HOT' },
-  { name: 'Batch Wallet Generate', path: 'batch-generate', badge: null },
-  { name: 'Market Maker - Batch Swap', path: 'batch-swap', badge: 'HOT' },
-  { name: 'Vanity Address Generator', path: 'vanity', badge: null },
-  { name: 'Gas Price', path: 'gas', badge: 'HOT' },
-  { name: 'RPC Server', path: 'rpc', badge: null },
-  { name: 'NFT MultiSender', path: 'nft-sender', badge: 'NEW' },
-  { name: 'Token Locker', path: 'locker', badge: 'HOT' },
+  { name: 'Token MultiSender', path: '/token/multi-sender', badge: 'HOT' },
+  { name: 'Batch Check Balance', path: '/wallet/batch-balance', badge: null },
+  { name: 'Token Batch Collection', path: '/token/batch-collection', badge: 'HOT' },
+  { name: 'Multiple to Multiple Transfer', path: '/token/multi-sender', badge: null },
+  { name: 'Create RAMA-20 Token', path: '/token/create', badge: 'HOT' },
+  { name: 'Batch Wallet Generate', path: '/wallet/batch-generate', badge: null },
+  { name: 'Market Maker - Batch Swap', path: '/trading/market-maker', badge: 'HOT' },
+  { name: 'Vanity Address Generator', path: '/wallet/vanity-generator', badge: null },
+  { name: 'Gas Price', path: '/analytics/gas-price', badge: 'HOT' },
+  { name: 'RPC Server', path: '/utilities/rpc-server', badge: null },
+  { name: 'NFT MultiSender', path: '/nft/multi-sender', badge: 'NEW' },
+  { name: 'Token Locker', path: '/token/locker', badge: 'HOT' },
 ]
 
 export default function ChainTools() {
@@ -61,7 +62,7 @@ export default function ChainTools() {
         {chainTools.map((tool, index) => (
           <Link
             key={index}
-            to={`/chain/${chainId}/${tool.path}`}
+            to={tool.path}
             className="tool-card group"
           >
             <div className="flex items-center justify-between">

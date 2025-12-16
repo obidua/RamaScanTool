@@ -45,7 +45,7 @@ export default function Dashboard() {
           <div className="flex flex-wrap gap-4">
             <Link to="/token/create" className="btn-primary flex items-center gap-2">
               <Coins className="w-5 h-5" />
-              Create RAMA Token
+              Create RAMA-20 Token
             </Link>
             <Link to="/wallet/batch-generate" className="btn-secondary flex items-center gap-2">
               <Wallet className="w-5 h-5" />
@@ -120,27 +120,30 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {SUPPORTED_CHAINS.map(chain => (
-            <div
-              key={chain.id}
-              className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
-                chain.status === 'active' 
-                  ? 'bg-cyan-500/10 border-cyan-500/50 hover:border-cyan-400' 
-                  : 'bg-slate-800/50 border-slate-700/50 opacity-60'
-              }`}
-            >
-              {chain.status === 'coming-soon' && (
-                <span className="absolute -top-2 -right-2 px-2 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-400 rounded-full border border-yellow-500/30">
-                  SOON
-                </span>
-              )}
-              {chain.status === 'active' && (
+            chain.status === 'active' ? (
+              <Link
+                key={chain.id}
+                to={`/chain/${chain.id}`}
+                className="relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all bg-cyan-500/10 border-cyan-500/50 hover:border-cyan-400 hover:bg-cyan-500/20 cursor-pointer"
+              >
                 <span className="absolute -top-2 -right-2 px-2 py-0.5 text-[10px] font-bold bg-green-500/20 text-green-400 rounded-full border border-green-500/30">
                   LIVE
                 </span>
-              )}
-              <span className="text-2xl">{chain.icon}</span>
-              <span className="text-xs text-slate-300 text-center font-medium">{chain.name}</span>
-            </div>
+                <span className="text-2xl">{chain.icon}</span>
+                <span className="text-xs text-slate-300 text-center font-medium">{chain.name}</span>
+              </Link>
+            ) : (
+              <div
+                key={chain.id}
+                className="relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all bg-slate-800/50 border-slate-700/50 opacity-60 cursor-not-allowed"
+              >
+                <span className="absolute -top-2 -right-2 px-2 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-400 rounded-full border border-yellow-500/30">
+                  SOON
+                </span>
+                <span className="text-2xl">{chain.icon}</span>
+                <span className="text-xs text-slate-300 text-center font-medium">{chain.name}</span>
+              </div>
+            )
           ))}
         </div>
         <p className="text-center text-slate-500 text-sm mt-4">

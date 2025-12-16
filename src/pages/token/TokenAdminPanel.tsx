@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Settings, Users, Pause, Play, Trash2, Edit, Shield, Loader2 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 export default function TokenAdminPanel() {
-  const { isConnected } = useAccount()
+  useAccount()
   const [tokenAddress, setTokenAddress] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [tokenInfo, setTokenInfo] = useState<{
@@ -49,6 +50,7 @@ export default function TokenAdminPanel() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Token Admin Panel</h1>

@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Globe, Search, ExternalLink, Copy, ArrowRight } from 'lucide-react'
+import { Search, ExternalLink, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { SUPPORTED_CHAINS } from '../../config/wagmi'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface SearchResult {
   type: 'address' | 'tx' | 'token' | 'block'
@@ -33,7 +35,7 @@ export default function Explorer() {
       type,
       value: query,
       chain,
-      extra: type === 'address' ? 'Balance: 1.5 ETH' : 
+      extra: type === 'address' ? 'Balance: 1500 RAMA' : 
              type === 'tx' ? 'Status: Success' :
              type === 'block' ? 'Transactions: 150' : undefined
     }])
@@ -61,6 +63,7 @@ export default function Explorer() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Multi-Chain Explorer</h1>
@@ -83,15 +86,10 @@ export default function Explorer() {
           </div>
           <div className="w-48">
             <label className="input-label">Network</label>
-            <select 
+            <NetworkSelector 
               value={selectedChain}
-              onChange={(e) => setSelectedChain(e.target.value)}
-              className="input-field"
-            >
-              {SUPPORTED_CHAINS.map(chain => (
-                <option key={chain.id} value={chain.id}>{chain.name}</option>
-              ))}
-            </select>
+              onChange={setSelectedChain}
+            />
           </div>
           <div className="flex items-end">
             <button onClick={search} className="btn-primary flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Binary, ArrowLeftRight, Copy, Check, Hash } from 'lucide-react'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 export default function HexConverter() {
   const [decimal, setDecimal] = useState('')
@@ -89,6 +90,7 @@ export default function HexConverter() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Hex Converter</h1>

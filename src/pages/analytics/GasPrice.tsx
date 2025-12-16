@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Fuel, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { SUPPORTED_CHAINS } from '../../config/wagmi'
+import BackButton from '../../components/BackButton'
 
 interface GasData {
   chain: string
@@ -52,6 +52,7 @@ export default function GasPrice() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

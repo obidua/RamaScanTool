@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { Coins, Loader2, Check, ExternalLink } from 'lucide-react'
+import { Coins, Loader2, Check } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 export default function CreateToken() {
   const { isConnected } = useAccount()
   const [step, setStep] = useState(1)
   const [isDeploying, setIsDeploying] = useState(false)
+  const [selectedChain, setSelectedChain] = useState('1370')
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
@@ -43,6 +46,7 @@ export default function CreateToken() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Create Token</h1>
@@ -128,15 +132,7 @@ export default function CreateToken() {
             </div>
 
             <div>
-              <label className="input-label">Network</label>
-              <select className="input-field">
-                <option>Ramestta (RAMA-20)</option>
-                <option>Ethereum (RAMA-20) - Coming Soon</option>
-                <option>BNB Chain (RAMA-20) - Coming Soon</option>
-                <option>Polygon (RAMA-20) - Coming Soon</option>
-                <option>Arbitrum (RAMA-20) - Coming Soon</option>
-                <option>Base (RAMA-20) - Coming Soon</option>
-              </select>
+              <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
             </div>
           </div>
 
@@ -292,7 +288,7 @@ export default function CreateToken() {
 
             <div className="stat-card">
               <p className="text-sm text-slate-400">Estimated Gas Fee</p>
-              <p className="text-lg font-semibold text-white">~0.015 ETH ($45.00)</p>
+              <p className="text-lg font-semibold text-white">~0.001 RAMA ($0.001)</p>
             </div>
           </div>
 

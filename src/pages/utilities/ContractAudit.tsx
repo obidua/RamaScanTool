@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Shield, Search, AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface AuditResult {
   score: number
@@ -33,7 +35,7 @@ const mockAuditResult: AuditResult = {
 
 export default function ContractAudit() {
   const [contractAddress, setContractAddress] = useState('')
-  const [selectedChain, setSelectedChain] = useState('ramestta')
+  const [selectedChain, setSelectedChain] = useState('1370')
   const [isAuditing, setIsAuditing] = useState(false)
   const [result, setResult] = useState<AuditResult | null>(null)
 
@@ -72,6 +74,7 @@ export default function ContractAudit() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Contract Audit</h1>
@@ -92,18 +95,11 @@ export default function ContractAudit() {
             />
           </div>
           <div className="md:col-span-3">
-            <label className="input-label">Network</label>
-            <select
+            <NetworkSelector
+              label="Network"
               value={selectedChain}
-              onChange={(e) => setSelectedChain(e.target.value)}
-              className="input-field"
-            >
-              <option value="ramestta">Ramestta</option>
-              <option value="ethereum">Ethereum</option>
-              <option value="bsc">BNB Chain</option>
-              <option value="polygon">Polygon</option>
-              <option value="arbitrum">Arbitrum</option>
-            </select>
+              onChange={setSelectedChain}
+            />
           </div>
           <div className="md:col-span-2 flex items-end">
             <button

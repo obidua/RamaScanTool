@@ -6,9 +6,9 @@ export default function Header() {
   const [isDark, setIsDark] = useState(true)
 
   return (
-    <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl flex items-center justify-between px-6">
-      {/* Search */}
-      <div className="flex-1 max-w-md">
+    <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl flex items-center justify-between px-4 md:px-6 fixed top-0 right-0 left-0 lg:left-64 z-30">
+      {/* Search - Hidden on mobile, shown on tablet+ */}
+      <div className="hidden sm:block flex-1 max-w-md">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
           <input
@@ -19,8 +19,11 @@ export default function Header() {
         </div>
       </div>
 
+      {/* Mobile spacer for hamburger */}
+      <div className="w-12 lg:hidden" />
+
       {/* Right Section */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Ramestta Network Indicator */}
         <a 
           href="https://ramascan.com" 
@@ -48,8 +51,8 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-6 w-px bg-slate-700" />
+        {/* Divider - hidden on mobile */}
+        <div className="hidden md:block h-6 w-px bg-slate-700" />
 
         {/* Theme Toggle */}
         <button
@@ -63,8 +66,8 @@ export default function Header() {
           )}
         </button>
 
-        {/* Notifications */}
-        <button className="p-2 rounded-lg hover:bg-slate-800 transition-colors relative">
+        {/* Notifications - hidden on mobile */}
+        <button className="hidden sm:block p-2 rounded-lg hover:bg-slate-800 transition-colors relative">
           <Bell className="w-5 h-5 text-slate-400" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
         </button>

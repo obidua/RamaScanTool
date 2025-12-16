@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
-import { Sparkles, Play, Pause, Download, Copy, Loader2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Sparkles, Pause, Download, Copy, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 interface VanityResult {
   address: string
@@ -16,20 +17,19 @@ export default function VanityAddressGenerator() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [results, setResults] = useState<VanityResult[]>([])
   const [attempts, setAttempts] = useState(0)
-  const [difficulty, setDifficulty] = useState('')
 
-  useEffect(() => {
+  const difficulty = useMemo(() => {
     const chars = (prefix.length + suffix.length)
     if (chars === 0) {
-      setDifficulty('')
+      return ''
     } else if (chars <= 2) {
-      setDifficulty('Easy (~1 second)')
+      return 'Easy (~1 second)'
     } else if (chars <= 4) {
-      setDifficulty('Medium (~1 minute)')
+      return 'Medium (~1 minute)'
     } else if (chars <= 6) {
-      setDifficulty('Hard (~1 hour)')
+      return 'Hard (~1 hour)'
     } else {
-      setDifficulty('Very Hard (days/weeks)')
+      return 'Very Hard (days/weeks)'
     }
   }, [prefix, suffix])
 
@@ -64,6 +64,7 @@ export default function VanityAddressGenerator() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Vanity Address Generator</h1>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Download, Copy, Loader2, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 interface GeneratedWallet {
   address: string
@@ -19,7 +20,7 @@ export default function BatchWalletGenerate() {
     // Simulate generation
     await new Promise(resolve => setTimeout(resolve, 1500))
     
-    const newWallets: GeneratedWallet[] = Array.from({ length: count }, (_, i) => ({
+    const newWallets: GeneratedWallet[] = Array.from({ length: count }, () => ({
       address: `0x${Math.random().toString(16).slice(2, 42)}`,
       privateKey: `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`,
     }))
@@ -48,6 +49,7 @@ export default function BatchWalletGenerate() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Batch Wallet Generate</h1>

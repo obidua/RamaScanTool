@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowLeftRight, Upload, Loader2, Check, AlertCircle } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
 
 interface SwapResult {
   wallet: string
@@ -63,6 +64,7 @@ export default function BatchSwap() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Batch Swap</h1>
@@ -83,7 +85,7 @@ export default function BatchSwap() {
                   name="fromToken"
                   value={config.fromToken}
                   onChange={handleChange}
-                  placeholder="ETH or token address"
+                  placeholder="RAMA or token address"
                   className="input-field"
                 />
               </div>
@@ -182,7 +184,7 @@ export default function BatchSwap() {
             </div>
             <div className="stat-card">
               <p className="text-sm text-slate-400">Estimated Gas</p>
-              <p className="text-xl font-bold text-yellow-400">~0.01 ETH</p>
+              <p className="text-xl font-bold text-yellow-400">~0.001 RAMA</p>
               <p className="text-sm text-slate-500">per swap</p>
             </div>
           </div>

@@ -24,7 +24,12 @@ const categoryIcons: Record<string, React.ComponentType<{ className?: string }>>
   utilities: Wrench,
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const location = useLocation()
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['wallet', 'token'])
 
@@ -37,10 +42,12 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800 flex flex-col z-50">
+    <aside className={`fixed left-0 top-0 h-screen w-64 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800 flex flex-col z-50 transition-transform duration-300 ${
+      isOpen ? 'translate-x-0' : '-translate-x-full'
+    } lg:translate-x-0`}>
       {/* Logo */}
       <div className="p-6 border-b border-slate-800">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3" onClick={onClose}>
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
             <span className="text-2xl">🔷</span>
           </div>
@@ -56,6 +63,7 @@ export default function Sidebar() {
         {/* Dashboard Link */}
         <Link
           to="/"
+          onClick={onClose}
           className={`sidebar-link ${location.pathname === '/' ? 'active' : ''}`}
         >
           <LayoutDashboard className="w-5 h-5" />
@@ -95,6 +103,7 @@ export default function Sidebar() {
                       <Link
                         key={tool.id}
                         to={tool.path}
+                        onClick={onClose}
                         className={`sidebar-link text-sm ${isActive ? 'active' : ''}`}
                       >
                         <ToolIcon className="w-4 h-4" />

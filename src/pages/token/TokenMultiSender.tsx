@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Send, Upload, Loader2, Check, AlertCircle } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface Recipient {
   address: string
@@ -13,6 +15,7 @@ export default function TokenMultiSender() {
   const { isConnected } = useAccount()
   const [tokenAddress, setTokenAddress] = useState('')
   const [recipients, setRecipients] = useState('')
+  const [selectedChain, setSelectedChain] = useState('1370')
   const [isSending, setIsSending] = useState(false)
   const [results, setResults] = useState<Recipient[]>([])
 
@@ -63,6 +66,7 @@ export default function TokenMultiSender() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Token MultiSender</h1>
@@ -84,17 +88,11 @@ export default function TokenMultiSender() {
                   className="input-field font-mono"
                 />
               </div>
-              <div>
-                <label className="input-label">Network</label>
-                <select className="input-field">
-                  <option>Ramestta</option>
-                  <option>Ethereum</option>
-                  <option>BNB Chain</option>
-                  <option>Polygon</option>
-                  <option>Arbitrum</option>
-                  <option>Base</option>
-                </select>
-              </div>
+              <NetworkSelector
+                label="Network"
+                value={selectedChain}
+                onChange={setSelectedChain}
+              />
             </div>
 
             <div>
@@ -149,8 +147,8 @@ export default function TokenMultiSender() {
               </div>
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Estimated Gas</p>
-                <p className="text-xl font-bold text-white">~0.008 ETH</p>
-                <p className="text-sm text-slate-500">$24.00</p>
+                <p className="text-xl font-bold text-white">~0.001 RAMA</p>
+                <p className="text-sm text-slate-500">$0.001</p>
               </div>
             </div>
           </div>

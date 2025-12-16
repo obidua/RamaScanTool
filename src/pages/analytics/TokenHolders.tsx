@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Users, Search, Download, Loader2, PieChart } from 'lucide-react'
 import toast from 'react-hot-toast'
+import BackButton from '../../components/BackButton'
+import NetworkSelector from '../../components/NetworkSelector'
 
 interface Holder {
   rank: number
@@ -25,6 +27,7 @@ export default function TokenHolders() {
   const [tokenAddress, setTokenAddress] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [holders, setHolders] = useState<Holder[]>([])
+  const [selectedChain, setSelectedChain] = useState('1370')
   const [stats, setStats] = useState<{
     totalHolders: number
     top10Percentage: number
@@ -53,6 +56,7 @@ export default function TokenHolders() {
 
   return (
     <div className="space-y-6">
+      <BackButton />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Scan Token Holders</h1>
@@ -73,14 +77,7 @@ export default function TokenHolders() {
             />
           </div>
           <div className="w-48">
-            <label className="input-label">Network</label>
-            <select className="input-field">
-              <option>Ramestta</option>
-              <option>Ethereum</option>
-              <option>BNB Chain</option>
-              <option>Polygon</option>
-              <option>Arbitrum</option>
-            </select>
+            <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
           </div>
           <div className="flex items-end">
             <button
