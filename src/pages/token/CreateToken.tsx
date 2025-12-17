@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Coins, Loader2, Check, ExternalLink } from 'lucide-react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { parseEther, decodeEventLog } from 'viem'
+import { Coins, Loader2, Check, ExternalLink, RefreshCw } from 'lucide-react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useGasPrice } from 'wagmi'
+import { decodeEventLog, formatEther } from 'viem'
 import toast from 'react-hot-toast'
 import BackButton from '../../components/BackButton'
 import NetworkSelector from '../../components/NetworkSelector'
@@ -23,6 +23,37 @@ export default function CreateToken() {
     burnable: true,
     pausable: false,
   })
+
+  // Read creation fee from contract
+  const { data: creationFee } = useReadContract({
+    address: CONTRACT_ADDRESSES.RAMA20Factory as `0x${string}`,
+    abi: RAMA20FactoryABI,
+    functionName: 'creationFee',
+  })
+
+  // Get current gas price
+  const { data: gasPrice, refetch: refetchGasPrice } = useGasPrice()
+
+  // Estimate gas for the transaction (using approximate gas for token deployment)
+  const estimatedGas = 2500000n // Approximate gas for token deployment
+
+  // Calculate total cost
+  const gasCost = gasPrice ? estimatedGas * gasPrice : 0n
+  const totalCost = (creationFee as bigint || 0n) + gasCost
+  
+  // Format for display
+  const formatRama = (value: bigint) => {
+    const formatted = formatEther(value)
+    const num = parseFloat(formatted)
+    if (num < 0.0001) return '< 0.0001'
+    return num.toFixed(4)
+  }
+
+  // Refresh gas estimates
+  const refreshEstimates = () => {
+    refetchGasPrice()
+    toast.success('Gas estimates refreshed')
+  }
 
   const { data: hash, writeContract, isPending, reset, error: writeError } = useWriteContract()
   
@@ -95,8 +126,8 @@ export default function CreateToken() {
 
     try {
       // Contract multiplies by 10^decimals internally, so we pass raw supply
-      const initialSupply = BigInt(formData.totalSupply)
-      const maxSupply = formData.maxSupply && formData.maxSupply !== '0' 
+      const supplyValue = BigInt(formData.totalSupply)
+      const maxSupplyValue = formData.maxSupply && formData.maxSupply !== '0' 
         ? BigInt(formData.maxSupply)
         : 0n
 
@@ -104,12 +135,13 @@ export default function CreateToken() {
         name: formData.name,
         symbol: formData.symbol,
         decimals: formData.decimals,
-        initialSupply: initialSupply.toString(),
-        maxSupply: maxSupply.toString(),
+        initialSupply: supplyValue.toString(),
+        maxSupply: maxSupplyValue.toString(),
         mintable: formData.mintable,
         burnable: formData.burnable,
         pausable: formData.pausable,
         factoryAddress: CONTRACT_ADDRESSES.RAMA20Factory,
+        creationFee: creationFee?.toString(),
       })
 
       writeContract({
@@ -120,13 +152,13 @@ export default function CreateToken() {
           formData.name,
           formData.symbol,
           formData.decimals,
-          initialSupply,
-          maxSupply,
+          supplyValue,
+          maxSupplyValue,
           formData.mintable,
           formData.burnable,
           formData.pausable,
         ],
-        value: parseEther('0.001'), // Creation fee (0.001 RAMA)
+        value: (creationFee as bigint) || 1000000000000000n, // Use dynamic fee or fallback to 0.001 RAMA
       })
     } catch (error: unknown) {
       console.error('Deploy error:', error)
@@ -370,8 +402,32 @@ export default function CreateToken() {
             </div>
 
             <div className="stat-card">
-              <p className="text-sm text-slate-400">Estimated Gas Fee</p>
-              <p className="text-lg font-semibold text-white">~0.001 RAMA ($0.001)</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-slate-400">Estimated Cost</p>
+                <button
+                  onClick={refreshEstimates}
+                  className="text-blue-400 hover:text-blue-300 p-1"
+                  title="Refresh gas estimate"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Creation Fee:</span>
+                  <span className="text-white">{creationFee ? formatRama(creationFee as bigint) : '0.001'} RAMA</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Gas Fee:</span>
+                  <span className="text-white">~{gasCost ? formatRama(gasCost) : '0.0001'} RAMA</span>
+                </div>
+                <div className="border-t border-slate-700 pt-1 mt-1">
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-slate-300">Total:</span>
+                    <span className="text-white">~{totalCost ? formatRama(totalCost) : '0.001'} RAMA</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
