@@ -1,23 +1,69 @@
-import { useState } from 'react'
-import { Image, Upload, Loader2, Check } from 'lucide-react'
-import { useAccount } from 'wagmi'
+import { useState, useEffect } from 'react'
+import { Image, Upload, Loader2, Check, ExternalLink } from 'lucide-react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { parseEther, decodeEventLog } from 'viem'
 import toast from 'react-hot-toast'
 import BackButton from '../../components/BackButton'
 import NetworkSelector from '../../components/NetworkSelector'
+import { CONTRACT_ADDRESSES, getTxUrl, getContractUrl } from '../../config/contracts'
+import { RAMA721FactoryABI } from '../../config/abis'
 
 export default function CreateNFT() {
   const { isConnected } = useAccount()
-  const [isDeploying, setIsDeploying] = useState(false)
   const [step, setStep] = useState(1)
   const [selectedChain, setSelectedChain] = useState('1370')
+  const [deployedCollection, setDeployedCollection] = useState<{ address: string; txHash: string } | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
     description: '',
+    baseURI: '',
     maxSupply: '10000',
     mintPrice: '0.05',
-    royalty: 5,
   })
+
+  const { data: hash, writeContract, isPending, reset } = useWriteContract()
+  
+  const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({
+    hash,
+  })
+
+  // Handle successful transaction
+  useEffect(() => {
+    if (isSuccess && receipt && hash) {
+      try {
+        const collectionCreatedLog = receipt.logs.find((log) => {
+          try {
+            const decoded = decodeEventLog({
+              abi: RAMA721FactoryABI,
+              data: log.data,
+              topics: log.topics,
+            })
+            return decoded.eventName === 'CollectionCreated'
+          } catch {
+            return false
+          }
+        })
+        
+        if (collectionCreatedLog) {
+          const decoded = decodeEventLog({
+            abi: RAMA721FactoryABI,
+            data: collectionCreatedLog.data,
+            topics: collectionCreatedLog.topics,
+          })
+          const collectionAddress = (decoded.args as { collectionAddress: `0x${string}` }).collectionAddress
+          setDeployedCollection({ address: collectionAddress, txHash: hash })
+          setStep(3)
+          toast.success('NFT Collection deployed successfully!')
+        }
+      } catch (error) {
+        console.error('Error parsing logs:', error)
+        setDeployedCollection({ address: 'Check transaction on Ramascan', txHash: hash })
+        setStep(3)
+        toast.success('Collection deployed! Check Ramascan for details.')
+      }
+    }
+  }, [isSuccess, receipt, hash])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -30,11 +76,46 @@ export default function CreateNFT() {
       return
     }
 
-    setIsDeploying(true)
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    setIsDeploying(false)
-    setStep(3)
-    toast.success('NFT Collection deployed!')
+    try {
+      const maxSupply = BigInt(formData.maxSupply || '10000')
+      const mintPrice = parseEther(formData.mintPrice || '0')
+      const baseURI = formData.baseURI || `ipfs://placeholder/${formData.symbol}/`
+      const contractURI = formData.baseURI || ''
+
+      writeContract({
+        address: CONTRACT_ADDRESSES.RAMA721Factory as `0x${string}`,
+        abi: RAMA721FactoryABI,
+        functionName: 'createCollection',
+        args: [
+          formData.name,
+          formData.symbol,
+          baseURI,
+          contractURI,
+          maxSupply,
+          mintPrice,
+        ],
+        value: parseEther('0.01'), // Creation fee
+      })
+    } catch (error: unknown) {
+      console.error('Deploy error:', error)
+      toast.error('Failed to deploy collection')
+    }
+  }
+
+  const isDeploying = isPending || isConfirming
+
+  const resetForm = () => {
+    setStep(1)
+    setDeployedCollection(null)
+    reset()
+    setFormData({
+      name: '',
+      symbol: '',
+      description: '',
+      baseURI: '',
+      maxSupply: '10000',
+      mintPrice: '0.05',
+    })
   }
 
   return (
@@ -59,6 +140,11 @@ export default function CreateNFT() {
           </div>
         ))}
       </div>
+      <div className="flex justify-center gap-16 text-sm">
+        <span className={step >= 1 ? 'text-white' : 'text-slate-500'}>Details</span>
+        <span className={step >= 2 ? 'text-white' : 'text-slate-500'}>Settings</span>
+        <span className={step >= 3 ? 'text-white' : 'text-slate-500'}>Success</span>
+      </div>
 
       {step === 1 && (
         <div className="glass-card p-6 max-w-2xl mx-auto">
@@ -73,7 +159,7 @@ export default function CreateNFT() {
             </div>
 
             <div>
-              <label className="input-label">Collection Name</label>
+              <label className="input-label">Collection Name *</label>
               <input
                 type="text"
                 name="name"
@@ -85,7 +171,7 @@ export default function CreateNFT() {
             </div>
 
             <div>
-              <label className="input-label">Symbol</label>
+              <label className="input-label">Symbol *</label>
               <input
                 type="text"
                 name="symbol"
@@ -109,7 +195,11 @@ export default function CreateNFT() {
               />
             </div>
 
-            <button onClick={() => setStep(2)} className="w-full btn-primary">
+            <button 
+              onClick={() => setStep(2)} 
+              disabled={!formData.name || !formData.symbol}
+              className="w-full btn-primary"
+            >
               Next: Mint Settings
             </button>
           </div>
@@ -145,30 +235,40 @@ export default function CreateNFT() {
             </div>
 
             <div>
-              <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
+              <label className="input-label">Base URI (optional)</label>
+              <input
+                type="text"
+                name="baseURI"
+                value={formData.baseURI}
+                onChange={handleChange}
+                placeholder="ipfs://... or https://..."
+                className="input-field"
+              />
+              <p className="text-xs text-slate-500 mt-1">Leave empty to set later. Token URIs will be baseURI + tokenId</p>
             </div>
 
             <div>
-              <label className="input-label">Royalty (%)</label>
-              <input
-                type="number"
-                name="royalty"
-                value={formData.royalty}
-                onChange={handleChange}
-                min={0}
-                max={15}
-                className="input-field"
-              />
-              <p className="text-xs text-slate-500 mt-1">Royalty on secondary sales (max 15%)</p>
+              <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
+            </div>
+
+            <div className="stat-card">
+              <p className="text-sm text-slate-400">Creation Fee</p>
+              <p className="text-xl font-bold text-white">0.01 RAMA + Gas</p>
             </div>
 
             <div className="flex gap-4">
-              <button onClick={() => setStep(1)} className="flex-1 btn-secondary">Back</button>
-              <button onClick={deployNFT} disabled={isDeploying} className="flex-1 btn-primary flex items-center justify-center gap-2">
+              <button onClick={() => setStep(1)} className="flex-1 btn-secondary" disabled={isDeploying}>
+                Back
+              </button>
+              <button 
+                onClick={deployNFT} 
+                disabled={isDeploying || !isConnected} 
+                className="flex-1 btn-primary flex items-center justify-center gap-2"
+              >
                 {isDeploying ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Deploying...
+                    {isPending ? 'Confirm in Wallet...' : 'Deploying...'}
                   </>
                 ) : (
                   <>
@@ -182,18 +282,68 @@ export default function CreateNFT() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && deployedCollection && (
         <div className="glass-card p-8 max-w-2xl mx-auto text-center">
           <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
             <Check className="w-10 h-10 text-green-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Collection Deployed!</h2>
-          <p className="text-slate-400 mb-6">Your NFT collection has been successfully deployed to the blockchain.</p>
-          <div className="stat-card mb-6">
-            <p className="text-sm text-slate-400">Contract Address</p>
-            <p className="font-mono text-white">0x1234...5678</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Collection Deployed! 🎉</h2>
+          <p className="text-slate-400 mb-6">Your {formData.name} ({formData.symbol}) NFT collection is now live!</p>
+          
+          <div className="space-y-4 mb-6">
+            <div className="stat-card">
+              <p className="text-sm text-slate-400">Collection Address</p>
+              <div className="flex items-center justify-center gap-2">
+                <code className="text-pink-400 font-mono text-sm break-all">{deployedCollection.address}</code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(deployedCollection.address)
+                    toast.success('Address copied!')
+                  }}
+                  className="text-slate-400 hover:text-white"
+                >
+                  📋
+                </button>
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <p className="text-sm text-slate-400">Transaction Hash</p>
+              <a
+                href={getTxUrl(deployedCollection.txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-pink-400 hover:text-pink-300 font-mono text-sm flex items-center justify-center gap-1"
+              >
+                {deployedCollection.txHash.slice(0, 20)}...{deployedCollection.txHash.slice(-8)}
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
           </div>
-          <button onClick={() => setStep(1)} className="btn-primary">Create Another Collection</button>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href={getContractUrl(deployedCollection.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary flex items-center justify-center gap-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View on Ramascan
+            </a>
+            <button onClick={resetForm} className="btn-secondary">
+              Create Another Collection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Info Box */}
+      {step < 3 && (
+        <div className="glass-card p-4 border-pink-500/30 bg-pink-500/5 max-w-2xl mx-auto">
+          <p className="text-pink-400 text-sm">
+            ℹ️ <strong>Deployment Fee:</strong> Creating a RAMA-721 collection requires 0.01 RAMA + gas fees.
+          </p>
         </div>
       )}
     </div>

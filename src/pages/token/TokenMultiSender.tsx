@@ -1,32 +1,141 @@
-import { useState } from 'react'
-import { Send, Upload, Loader2, Check, AlertCircle } from 'lucide-react'
-import { useAccount } from 'wagmi'
+import { useState, useEffect } from 'react'
+import { Send, Upload, Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { parseUnits, formatUnits, isAddress } from 'viem'
 import toast from 'react-hot-toast'
 import BackButton from '../../components/BackButton'
 import NetworkSelector from '../../components/NetworkSelector'
+import { CONTRACT_ADDRESSES, getTxUrl } from '../../config/contracts'
+import { MultiSenderABI, ERC20ABI } from '../../config/abis'
 
 interface Recipient {
   address: string
   amount: string
-  status: 'pending' | 'success' | 'error'
+  valid: boolean
 }
 
 export default function TokenMultiSender() {
-  const { isConnected } = useAccount()
+  const { isConnected, address: userAddress } = useAccount()
   const [tokenAddress, setTokenAddress] = useState('')
   const [recipients, setRecipients] = useState('')
   const [selectedChain, setSelectedChain] = useState('1370')
-  const [isSending, setIsSending] = useState(false)
-  const [results, setResults] = useState<Recipient[]>([])
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
+  const [needsApproval, setNeedsApproval] = useState(false)
 
+  // Read token info
+  const { data: tokenName } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20ABI,
+    functionName: 'name',
+    query: { enabled: isAddress(tokenAddress) },
+  })
+
+  const { data: tokenSymbol } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20ABI,
+    functionName: 'symbol',
+    query: { enabled: isAddress(tokenAddress) },
+  })
+
+  const { data: tokenDecimals } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20ABI,
+    functionName: 'decimals',
+    query: { enabled: isAddress(tokenAddress) },
+  })
+
+  const { data: tokenBalance } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20ABI,
+    functionName: 'balanceOf',
+    args: userAddress ? [userAddress] : undefined,
+    query: { enabled: isAddress(tokenAddress) && !!userAddress },
+  })
+
+  const { data: allowance } = useReadContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20ABI,
+    functionName: 'allowance',
+    args: userAddress ? [userAddress, CONTRACT_ADDRESSES.MultiSender as `0x${string}`] : undefined,
+    query: { enabled: isAddress(tokenAddress) && !!userAddress },
+  })
+
+  // Contract write hooks
+  const { data: approveHash, writeContract: writeApprove, isPending: isApproving } = useWriteContract()
+  const { data: sendHash, writeContract: writeSend, isPending: isSending } = useWriteContract()
+
+  const { isLoading: isApproveConfirming, isSuccess: approveSuccess } = useWaitForTransactionReceipt({
+    hash: approveHash,
+  })
+
+  const { isLoading: isSendConfirming, isSuccess: sendSuccess } = useWaitForTransactionReceipt({
+    hash: sendHash,
+  })
+
+  // Parse recipients from textarea
   const parseRecipients = (): Recipient[] => {
     return recipients
       .split('\n')
       .filter(line => line.trim())
       .map(line => {
-        const [address, amount] = line.split(',').map(s => s.trim())
-        return { address, amount, status: 'pending' as const }
+        const parts = line.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+        const addr = parts[0] || ''
+        const amount = parts[1] || '0'
+        return { 
+          address: addr, 
+          amount, 
+          valid: isAddress(addr) && parseFloat(amount) > 0 
+        }
       })
+  }
+
+  const parsedRecipients = parseRecipients()
+  const validRecipients = parsedRecipients.filter(r => r.valid)
+  const totalAmount = validRecipients.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+  const decimals = tokenDecimals ?? 18
+
+  // Check if approval is needed
+  useEffect(() => {
+    if (allowance !== undefined && totalAmount > 0) {
+      const totalInWei = parseUnits(totalAmount.toString(), decimals)
+      setNeedsApproval(allowance < totalInWei)
+    }
+  }, [allowance, totalAmount, decimals])
+
+  // Handle approval success
+  useEffect(() => {
+    if (approveSuccess) {
+      toast.success('Token approved! Now you can send.')
+      setNeedsApproval(false)
+    }
+  }, [approveSuccess])
+
+  // Handle send success
+  useEffect(() => {
+    if (sendSuccess && sendHash) {
+      setTxHash(sendHash)
+      toast.success('Tokens sent successfully!')
+    }
+  }, [sendSuccess, sendHash])
+
+  const approveTokens = async () => {
+    if (!isAddress(tokenAddress)) {
+      toast.error('Invalid token address')
+      return
+    }
+
+    try {
+      const totalInWei = parseUnits(totalAmount.toString(), decimals)
+      writeApprove({
+        address: tokenAddress as `0x${string}`,
+        abi: ERC20ABI,
+        functionName: 'approve',
+        args: [CONTRACT_ADDRESSES.MultiSender as `0x${string}`, totalInWei * 2n], // Approve 2x for safety
+      })
+    } catch (error) {
+      console.error('Approve error:', error)
+      toast.error('Failed to approve tokens')
+    }
   }
 
   const sendTokens = async () => {
@@ -35,34 +144,38 @@ export default function TokenMultiSender() {
       return
     }
 
-    if (!tokenAddress) {
-      toast.error('Please enter token address')
+    if (!isAddress(tokenAddress)) {
+      toast.error('Please enter a valid token address')
       return
     }
 
-    const recipientList = parseRecipients()
-    if (recipientList.length === 0) {
-      toast.error('Please enter recipients')
+    if (validRecipients.length === 0) {
+      toast.error('Please enter valid recipients')
       return
     }
 
-    setIsSending(true)
-    setResults(recipientList)
-
-    // Simulate sending
-    for (let i = 0; i < recipientList.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      setResults(prev => prev.map((r, idx) => 
-        idx === i ? { ...r, status: Math.random() > 0.1 ? 'success' : 'error' } : r
-      ))
+    if (needsApproval) {
+      toast.error('Please approve tokens first')
+      return
     }
 
-    setIsSending(false)
-    toast.success('Batch transfer completed!')
+    try {
+      const addresses = validRecipients.map(r => r.address as `0x${string}`)
+      const amounts = validRecipients.map(r => parseUnits(r.amount, decimals))
+
+      writeSend({
+        address: CONTRACT_ADDRESSES.MultiSender as `0x${string}`,
+        abi: MultiSenderABI,
+        functionName: 'sendTokens',
+        args: [tokenAddress as `0x${string}`, addresses, amounts],
+      })
+    } catch (error) {
+      console.error('Send error:', error)
+      toast.error('Failed to send tokens')
+    }
   }
 
-  const totalAmount = parseRecipients().reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-  const recipientCount = parseRecipients().length
+  const isProcessing = isApproving || isApproveConfirming || isSending || isSendConfirming
 
   return (
     <div className="space-y-6">
@@ -87,6 +200,11 @@ export default function TokenMultiSender() {
                   placeholder="0x..."
                   className="input-field font-mono"
                 />
+                {tokenSymbol && tokenName && (
+                  <p className="text-sm text-green-400 mt-1">
+                    ✓ {tokenName} ({tokenSymbol})
+                  </p>
+                )}
               </div>
               <NetworkSelector
                 label="Network"
@@ -106,20 +224,41 @@ export default function TokenMultiSender() {
               />
             </div>
 
-            <div className="flex gap-4 mt-4">
+            <div className="flex flex-wrap gap-4 mt-4">
               <button className="btn-secondary flex items-center gap-2">
                 <Upload className="w-5 h-5" />
                 Import CSV
               </button>
+              
+              {needsApproval && validRecipients.length > 0 && (
+                <button
+                  onClick={approveTokens}
+                  disabled={isProcessing}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  {isApproving || isApproveConfirming ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {isApproving ? 'Confirm...' : 'Approving...'}
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Approve {tokenSymbol || 'Tokens'}
+                    </>
+                  )}
+                </button>
+              )}
+              
               <button
                 onClick={sendTokens}
-                disabled={isSending || !isConnected}
+                disabled={isProcessing || !isConnected || needsApproval || validRecipients.length === 0}
                 className="btn-primary flex items-center gap-2"
               >
-                {isSending ? (
+                {isSending || isSendConfirming ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Sending...
+                    {isSending ? 'Confirm...' : 'Sending...'}
                   </>
                 ) : (
                   <>
@@ -139,16 +278,30 @@ export default function TokenMultiSender() {
             <div className="space-y-4">
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Recipients</p>
-                <p className="text-2xl font-bold text-white">{recipientCount}</p>
+                <p className="text-2xl font-bold text-white">{validRecipients.length}</p>
+                {parsedRecipients.length > validRecipients.length && (
+                  <p className="text-xs text-yellow-400">
+                    {parsedRecipients.length - validRecipients.length} invalid
+                  </p>
+                )}
               </div>
               <div className="stat-card">
                 <p className="text-sm text-slate-400">Total Amount</p>
-                <p className="text-2xl font-bold text-blue-400">{totalAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-blue-400">
+                  {totalAmount.toLocaleString()} {tokenSymbol || ''}
+                </p>
               </div>
+              {tokenBalance !== undefined && (
+                <div className="stat-card">
+                  <p className="text-sm text-slate-400">Your Balance</p>
+                  <p className="text-xl font-bold text-white">
+                    {Number(formatUnits(tokenBalance, decimals)).toLocaleString()} {tokenSymbol || ''}
+                  </p>
+                </div>
+              )}
               <div className="stat-card">
-                <p className="text-sm text-slate-400">Estimated Gas</p>
-                <p className="text-xl font-bold text-white">~0.001 RAMA</p>
-                <p className="text-sm text-slate-500">$0.001</p>
+                <p className="text-sm text-slate-400">Service Fee</p>
+                <p className="text-xl font-bold text-white">FREE</p>
               </div>
             </div>
           </div>
@@ -161,54 +314,44 @@ export default function TokenMultiSender() {
         </div>
       </div>
 
-      {/* Results */}
-      {results.length > 0 && (
-        <div className="glass-card overflow-hidden">
-          <div className="p-4 border-b border-slate-700">
-            <h2 className="text-lg font-semibold text-white">Transfer Results</h2>
+      {/* Success Result */}
+      {txHash && (
+        <div className="glass-card p-6 text-center">
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8 text-green-500" />
           </div>
-          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-            <table className="w-full">
-              <thead className="sticky top-0">
-                <tr className="bg-slate-800">
-                  <th className="table-header">#</th>
-                  <th className="table-header">Address</th>
-                  <th className="table-header">Amount</th>
-                  <th className="table-header">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((result, index) => (
-                  <tr key={index} className="hover:bg-slate-800/50">
-                    <td className="table-cell">{index + 1}</td>
-                    <td className="table-cell font-mono text-sm">
-                      {result.address.slice(0, 10)}...{result.address.slice(-8)}
-                    </td>
-                    <td className="table-cell font-semibold">{result.amount}</td>
-                    <td className="table-cell">
-                      {result.status === 'pending' && (
-                        <span className="flex items-center gap-2 text-yellow-400">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Pending
-                        </span>
-                      )}
-                      {result.status === 'success' && (
-                        <span className="flex items-center gap-2 text-green-400">
-                          <Check className="w-4 h-4" />
-                          Success
-                        </span>
-                      )}
-                      {result.status === 'error' && (
-                        <span className="flex items-center gap-2 text-red-400">
-                          <AlertCircle className="w-4 h-4" />
-                          Failed
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h2 className="text-xl font-semibold text-white mb-2">Tokens Sent Successfully! 🎉</h2>
+          <p className="text-slate-400 mb-4">
+            Sent {totalAmount.toLocaleString()} {tokenSymbol} to {validRecipients.length} recipients
+          </p>
+          <a
+            href={getTxUrl(txHash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary inline-flex items-center gap-2"
+          >
+            <ExternalLink className="w-4 h-4" />
+            View on Ramascan
+          </a>
+        </div>
+      )}
+
+      {/* Validation errors */}
+      {parsedRecipients.length > 0 && parsedRecipients.some(r => !r.valid) && (
+        <div className="glass-card p-4 border-yellow-500/30 bg-yellow-500/5">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-yellow-400 font-medium">Some entries are invalid</p>
+              <ul className="text-sm text-slate-400 mt-1">
+                {parsedRecipients.map((r, i) => !r.valid && (
+                  <li key={i}>Line {i + 1}: {r.address ? (isAddress(r.address) ? 'Invalid amount' : 'Invalid address') : 'Empty line'}</li>
+                )).filter(Boolean).slice(0, 5)}
+                {parsedRecipients.filter(r => !r.valid).length > 5 && (
+                  <li>...and {parsedRecipients.filter(r => !r.valid).length - 5} more</li>
+                )}
+              </ul>
+            </div>
           </div>
         </div>
       )}

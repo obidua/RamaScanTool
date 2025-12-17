@@ -1,27 +1,73 @@
-import { useState } from 'react'
-import { Coins, Loader2, Check } from 'lucide-react'
-import { useAccount } from 'wagmi'
+import { useState, useEffect } from 'react'
+import { Coins, Loader2, Check, ExternalLink } from 'lucide-react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { parseEther, parseUnits, decodeEventLog } from 'viem'
 import toast from 'react-hot-toast'
 import BackButton from '../../components/BackButton'
 import NetworkSelector from '../../components/NetworkSelector'
+import { CONTRACT_ADDRESSES, getTxUrl, getContractUrl } from '../../config/contracts'
+import { RAMA20FactoryABI } from '../../config/abis'
 
 export default function CreateToken() {
   const { isConnected } = useAccount()
   const [step, setStep] = useState(1)
-  const [isDeploying, setIsDeploying] = useState(false)
   const [selectedChain, setSelectedChain] = useState('1370')
+  const [deployedToken, setDeployedToken] = useState<{ address: string; txHash: string } | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
     decimals: 18,
     totalSupply: '1000000000',
+    maxSupply: '0',
     mintable: false,
     burnable: true,
     pausable: false,
-    taxable: false,
-    buyTax: 0,
-    sellTax: 0,
   })
+
+  const { data: hash, writeContract, isPending, reset } = useWriteContract()
+  
+  const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({
+    hash,
+  })
+
+  // Handle successful transaction
+  useEffect(() => {
+    if (isSuccess && receipt && hash) {
+      // Find TokenCreated event in logs
+      try {
+        const tokenCreatedLog = receipt.logs.find((log) => {
+          try {
+            const decoded = decodeEventLog({
+              abi: RAMA20FactoryABI,
+              data: log.data,
+              topics: log.topics,
+            })
+            return decoded.eventName === 'TokenCreated'
+          } catch {
+            return false
+          }
+        })
+        
+        if (tokenCreatedLog) {
+          const decoded = decodeEventLog({
+            abi: RAMA20FactoryABI,
+            data: tokenCreatedLog.data,
+            topics: tokenCreatedLog.topics,
+          })
+          const tokenAddress = (decoded.args as { tokenAddress: `0x${string}` }).tokenAddress
+          setDeployedToken({ address: tokenAddress, txHash: hash })
+          setStep(4)
+          toast.success('Token deployed successfully!')
+        }
+      } catch (error) {
+        console.error('Error parsing logs:', error)
+        // Still show success even if we can't parse the logs
+        setDeployedToken({ address: 'Check transaction on Ramascan', txHash: hash })
+        setStep(4)
+        toast.success('Token deployed! Check Ramascan for details.')
+      }
+    }
+  }, [isSuccess, receipt, hash])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -37,11 +83,50 @@ export default function CreateToken() {
       return
     }
 
-    setIsDeploying(true)
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    setIsDeploying(false)
-    setStep(3)
-    toast.success('Token deployed successfully!')
+    try {
+      const initialSupply = parseUnits(formData.totalSupply, formData.decimals)
+      const maxSupply = formData.maxSupply && formData.maxSupply !== '0' 
+        ? parseUnits(formData.maxSupply, formData.decimals) 
+        : 0n
+
+      writeContract({
+        address: CONTRACT_ADDRESSES.RAMA20Factory as `0x${string}`,
+        abi: RAMA20FactoryABI,
+        functionName: 'createToken',
+        args: [
+          formData.name,
+          formData.symbol,
+          formData.decimals,
+          initialSupply,
+          maxSupply,
+          formData.mintable,
+          formData.burnable,
+          formData.pausable,
+        ],
+        value: parseEther('0.01'), // Creation fee
+      })
+    } catch (error: unknown) {
+      console.error('Deploy error:', error)
+      toast.error('Failed to deploy token')
+    }
+  }
+
+  const isDeploying = isPending || isConfirming
+
+  const resetForm = () => {
+    setStep(1)
+    setDeployedToken(null)
+    reset()
+    setFormData({
+      name: '',
+      symbol: '',
+      decimals: 18,
+      totalSupply: '1000000000',
+      maxSupply: '0',
+      mintable: false,
+      burnable: true,
+      pausable: false,
+    })
   }
 
   return (
@@ -55,23 +140,24 @@ export default function CreateToken() {
 
       {/* Progress Steps */}
       <div className="flex items-center justify-center gap-4">
-        {[1, 2, 3].map((s) => (
+        {[1, 2, 3, 4].map((s) => (
           <div key={s} className="flex items-center">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
               step >= s ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'
             }`}>
               {step > s ? <Check className="w-5 h-5" /> : s}
             </div>
-            {s < 3 && (
-              <div className={`w-20 h-1 ${step > s ? 'bg-blue-500' : 'bg-slate-700'}`} />
+            {s < 4 && (
+              <div className={`w-16 h-1 ${step > s ? 'bg-blue-500' : 'bg-slate-700'}`} />
             )}
           </div>
         ))}
       </div>
-      <div className="flex justify-center gap-16 text-sm">
+      <div className="flex justify-center gap-12 text-sm">
         <span className={step >= 1 ? 'text-white' : 'text-slate-500'}>Token Info</span>
         <span className={step >= 2 ? 'text-white' : 'text-slate-500'}>Features</span>
         <span className={step >= 3 ? 'text-white' : 'text-slate-500'}>Deploy</span>
+        <span className={step >= 4 ? 'text-white' : 'text-slate-500'}>Success</span>
       </div>
 
       {/* Step 1: Basic Info */}
@@ -196,46 +282,18 @@ export default function CreateToken() {
               />
             </label>
 
-            <label className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
-              <div>
-                <p className="font-medium text-white">Taxable</p>
-                <p className="text-sm text-slate-400">Enable buy/sell taxes</p>
-              </div>
-              <input
-                type="checkbox"
-                name="taxable"
-                checked={formData.taxable}
-                onChange={handleChange}
-                className="w-5 h-5 rounded border-slate-600 bg-slate-800 text-blue-500"
-              />
-            </label>
-
-            {formData.taxable && (
-              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-800/30 rounded-xl">
-                <div>
-                  <label className="input-label">Buy Tax (%)</label>
-                  <input
-                    type="number"
-                    name="buyTax"
-                    value={formData.buyTax}
-                    onChange={handleChange}
-                    min={0}
-                    max={25}
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label className="input-label">Sell Tax (%)</label>
-                  <input
-                    type="number"
-                    name="sellTax"
-                    value={formData.sellTax}
-                    onChange={handleChange}
-                    min={0}
-                    max={25}
-                    className="input-field"
-                  />
-                </div>
+            {formData.mintable && (
+              <div className="p-4 bg-slate-800/30 rounded-xl">
+                <label className="input-label">Max Supply (0 = unlimited)</label>
+                <input
+                  type="text"
+                  name="maxSupply"
+                  value={formData.maxSupply}
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="input-field"
+                />
+                <p className="text-xs text-slate-500 mt-1">Set a maximum supply cap for mintable tokens</p>
               </div>
             )}
           </div>
@@ -282,18 +340,20 @@ export default function CreateToken() {
                 {formData.mintable && <span className="badge badge-chain">Mintable</span>}
                 {formData.burnable && <span className="badge badge-chain">Burnable</span>}
                 {formData.pausable && <span className="badge badge-chain">Pausable</span>}
-                {formData.taxable && <span className="badge badge-chain">Tax: {formData.buyTax}%/{formData.sellTax}%</span>}
+                {!formData.mintable && !formData.burnable && !formData.pausable && (
+                  <span className="text-slate-500">Standard RAMA-20</span>
+                )}
               </div>
             </div>
 
             <div className="stat-card">
-              <p className="text-sm text-slate-400">Estimated Gas Fee</p>
-              <p className="text-lg font-semibold text-white">~0.001 RAMA ($0.001)</p>
+              <p className="text-sm text-slate-400">Creation Fee</p>
+              <p className="text-lg font-semibold text-white">0.01 RAMA + Gas</p>
             </div>
           </div>
 
           <div className="flex justify-between">
-            <button onClick={() => setStep(2)} className="btn-secondary">
+            <button onClick={() => setStep(2)} className="btn-secondary" disabled={isDeploying}>
               Back
             </button>
             <button
@@ -304,7 +364,7 @@ export default function CreateToken() {
               {isDeploying ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Deploying...
+                  {isPending ? 'Confirm in Wallet...' : 'Deploying...'}
                 </>
               ) : (
                 <>
@@ -317,13 +377,72 @@ export default function CreateToken() {
         </div>
       )}
 
+      {/* Step 4: Success */}
+      {step === 4 && deployedToken && (
+        <div className="glass-card p-6 max-w-2xl mx-auto text-center">
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-8 h-8 text-green-500" />
+          </div>
+          <h2 className="text-2xl font-semibold text-white mb-2">Token Deployed Successfully! 🎉</h2>
+          <p className="text-slate-400 mb-6">Your {formData.name} ({formData.symbol}) token is now live on Ramestta Network</p>
+          
+          <div className="space-y-4 mb-6">
+            <div className="stat-card">
+              <p className="text-sm text-slate-400">Token Address</p>
+              <div className="flex items-center justify-center gap-2">
+                <code className="text-blue-400 font-mono text-sm break-all">{deployedToken.address}</code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(deployedToken.address)
+                    toast.success('Address copied!')
+                  }}
+                  className="text-slate-400 hover:text-white"
+                >
+                  📋
+                </button>
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <p className="text-sm text-slate-400">Transaction Hash</p>
+              <a
+                href={getTxUrl(deployedToken.txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 font-mono text-sm flex items-center justify-center gap-1"
+              >
+                {deployedToken.txHash.slice(0, 20)}...{deployedToken.txHash.slice(-8)}
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href={getContractUrl(deployedToken.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary flex items-center justify-center gap-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View on Ramascan
+            </a>
+            <button onClick={resetForm} className="btn-secondary">
+              Create Another Token
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Deployment Fee Info */}
-      <div className="glass-card p-4 border-blue-500/30 bg-blue-500/5 max-w-2xl mx-auto">
-        <p className="text-blue-400 text-sm">
-          ℹ️ <strong>Deployment Fee:</strong> Creating a RAMA-20 token requires gas fees on Ramestta Network. 
-          Make sure you have enough RAMA to cover the deployment cost (~0.1 RAMA).
-        </p>
-      </div>
+      {step < 4 && (
+        <div className="glass-card p-4 border-blue-500/30 bg-blue-500/5 max-w-2xl mx-auto">
+          <p className="text-blue-400 text-sm">
+            ℹ️ <strong>Deployment Fee:</strong> Creating a RAMA-20 token requires 0.01 RAMA + gas fees. 
+            Make sure you have enough RAMA to cover the deployment cost.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
