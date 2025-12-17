@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Coins, Loader2, Check, ExternalLink, RefreshCw, Copy, Wallet, FileCode, ChevronDown, ChevronUp } from 'lucide-react'
+import { Coins, Loader2, Check, ExternalLink, RefreshCw, Copy, Wallet, FileCode, ChevronDown, ChevronUp, Shield, CheckCircle, XCircle } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useGasPrice } from 'wagmi'
 import { decodeEventLog, formatEther } from 'viem'
 import toast from 'react-hot-toast'
@@ -7,6 +7,7 @@ import BackButton from '../../components/BackButton'
 import NetworkSelector from '../../components/NetworkSelector'
 import { CONTRACT_ADDRESSES, getTxUrl, getContractUrl } from '../../config/contracts'
 import { RAMA20FactoryABI } from '../../config/abis'
+import { verifyTokenContract, getVerificationStatus } from '../../services/verifyContract'
 
 // RAMA20Token source code for verification
 const RAMA20_TOKEN_SOURCE = `// SPDX-License-Identifier: MIT
@@ -79,6 +80,9 @@ export default function CreateToken() {
   const [showImportGuide, setShowImportGuide] = useState(false)
   const [showVerifyGuide, setShowVerifyGuide] = useState(false)
   const [showSourceCode, setShowSourceCode] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle')
+  const [verificationMessage, setVerificationMessage] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
@@ -578,6 +582,137 @@ export default function CreateToken() {
                 Create Another Token
               </button>
             </div>
+          </div>
+
+          {/* Verify Contract Section */}
+          <div className="glass-card p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Shield className="w-6 h-6 text-green-400" />
+              <h3 className="text-lg font-semibold text-white">Verify Contract on Ramascan</h3>
+            </div>
+            
+            {verificationStatus === 'idle' && (
+              <div className="space-y-4">
+                <p className="text-slate-400 text-sm">
+                  Verify your token contract to make the source code publicly visible on Ramascan. 
+                  This builds trust with your token holders.
+                </p>
+                <button
+                  onClick={async () => {
+                    if (!deployedToken || !userAddress) return;
+                    
+                    setIsVerifying(true);
+                    setVerificationStatus('pending');
+                    setVerificationMessage('Submitting verification request...');
+                    
+                    try {
+                      // Check if already verified
+                      const status = await getVerificationStatus(deployedToken.address);
+                      if (status.verified) {
+                        setVerificationStatus('success');
+                        setVerificationMessage('Contract is already verified!');
+                        toast.success('Contract is already verified!');
+                        return;
+                      }
+                      
+                      // Attempt verification
+                      const result = await verifyTokenContract({
+                        contractAddress: deployedToken.address,
+                        name: formData.name,
+                        symbol: formData.symbol,
+                        decimals: formData.decimals,
+                        initialSupply: formData.totalSupply,
+                        maxSupply: formData.maxSupply || '0',
+                        mintable: formData.mintable,
+                        burnable: formData.burnable,
+                        pausable: formData.pausable,
+                        ownerAddress: userAddress,
+                      });
+                      
+                      if (result.success) {
+                        setVerificationStatus('success');
+                        setVerificationMessage(result.message);
+                        toast.success(result.message);
+                      } else {
+                        setVerificationStatus('failed');
+                        setVerificationMessage(result.message);
+                        toast.error('Verification failed. Try manual verification.');
+                      }
+                    } catch (error) {
+                      setVerificationStatus('failed');
+                      setVerificationMessage(error instanceof Error ? error.message : 'Unknown error');
+                      toast.error('Verification failed');
+                    } finally {
+                      setIsVerifying(false);
+                    }
+                  }}
+                  disabled={isVerifying}
+                  className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  <Shield className="w-5 h-5" />
+                  Verify Contract
+                </button>
+              </div>
+            )}
+            
+            {verificationStatus === 'pending' && (
+              <div className="flex items-center gap-3 p-4 bg-blue-500/10 rounded-lg">
+                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                <div>
+                  <p className="text-white font-medium">Verifying Contract...</p>
+                  <p className="text-slate-400 text-sm">{verificationMessage}</p>
+                </div>
+              </div>
+            )}
+            
+            {verificationStatus === 'success' && (
+              <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <div className="flex-1">
+                  <p className="text-white font-medium">Contract Verified!</p>
+                  <p className="text-slate-400 text-sm">{verificationMessage}</p>
+                </div>
+                <a
+                  href={`${getContractUrl(deployedToken.address)}#code`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 flex items-center gap-1 text-sm"
+                >
+                  View Code <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            )}
+            
+            {verificationStatus === 'failed' && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-lg">
+                  <XCircle className="w-5 h-5 text-red-400 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-white font-medium">Automatic Verification Failed</p>
+                    <p className="text-slate-400 text-sm">{verificationMessage}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => {
+                      setVerificationStatus('idle');
+                      setVerificationMessage('');
+                    }}
+                    className="btn-secondary flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Try Again
+                  </button>
+                  <button
+                    onClick={() => setShowVerifyGuide(true)}
+                    className="btn-secondary flex items-center justify-center gap-2"
+                  >
+                    <FileCode className="w-4 h-4" />
+                    Manual Verification Guide
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* How to Import Token */}
