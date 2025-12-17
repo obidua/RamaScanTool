@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Coins, Loader2, Check, ExternalLink, RefreshCw } from 'lucide-react'
+import { Coins, Loader2, Check, ExternalLink, RefreshCw, Copy, Wallet, FileCode, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useGasPrice } from 'wagmi'
 import { decodeEventLog, formatEther } from 'viem'
 import toast from 'react-hot-toast'
@@ -8,11 +8,77 @@ import NetworkSelector from '../../components/NetworkSelector'
 import { CONTRACT_ADDRESSES, getTxUrl, getContractUrl } from '../../config/contracts'
 import { RAMA20FactoryABI } from '../../config/abis'
 
+// RAMA20Token source code for verification
+const RAMA20_TOKEN_SOURCE = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.22;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract RAMA20Token is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
+    uint8 private _decimals;
+    bool public mintable;
+    bool public pausable;
+    uint256 public maxSupply;
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint256 initialSupply_,
+        uint256 maxSupply_,
+        bool mintable_,
+        bool burnable_,
+        bool pausable_,
+        address owner_
+    ) ERC20(name_, symbol_) Ownable(owner_) {
+        _decimals = decimals_;
+        mintable = mintable_;
+        pausable = pausable_;
+        maxSupply = maxSupply_;
+        
+        if (initialSupply_ > 0) {
+            _mint(owner_, initialSupply_ * 10 ** decimals_);
+        }
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return _decimals;
+    }
+
+    function mint(address to, uint256 amount) public onlyOwner {
+        require(mintable, "Minting is disabled");
+        if (maxSupply > 0) {
+            require(totalSupply() + amount <= maxSupply * 10 ** _decimals, "Exceeds max supply");
+        }
+        _mint(to, amount);
+    }
+
+    function pause() public onlyOwner {
+        require(pausable, "Pausing is disabled");
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        require(pausable, "Pausing is disabled");
+        _unpause();
+    }
+
+    function _update(address from, address to, uint256 value) internal virtual override(ERC20, ERC20Pausable) {
+        super._update(from, to, value);
+    }
+}`;
+
 export default function CreateToken() {
-  const { isConnected } = useAccount()
+  const { isConnected, address: userAddress } = useAccount()
   const [step, setStep] = useState(1)
   const [selectedChain, setSelectedChain] = useState('1370')
   const [deployedToken, setDeployedToken] = useState<{ address: string; txHash: string } | null>(null)
+  const [showImportGuide, setShowImportGuide] = useState(false)
+  const [showVerifyGuide, setShowVerifyGuide] = useState(false)
+  const [showSourceCode, setShowSourceCode] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
@@ -458,57 +524,251 @@ export default function CreateToken() {
 
       {/* Step 4: Success */}
       {step === 4 && deployedToken && (
-        <div className="glass-card p-6 max-w-2xl mx-auto text-center">
-          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8 text-green-500" />
-          </div>
-          <h2 className="text-2xl font-semibold text-white mb-2">Token Deployed Successfully! 🎉</h2>
-          <p className="text-slate-400 mb-6">Your {formData.name} ({formData.symbol}) token is now live on Ramestta Network</p>
-          
-          <div className="space-y-4 mb-6">
-            <div className="stat-card">
-              <p className="text-sm text-slate-400">Token Address</p>
-              <div className="flex items-center justify-center gap-2">
-                <code className="text-blue-400 font-mono text-sm break-all">{deployedToken.address}</code>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(deployedToken.address)
-                    toast.success('Address copied!')
-                  }}
-                  className="text-slate-400 hover:text-white"
+        <div className="space-y-6 max-w-3xl mx-auto">
+          {/* Success Header */}
+          <div className="glass-card p-6 text-center">
+            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-500" />
+            </div>
+            <h2 className="text-2xl font-semibold text-white mb-2">Token Deployed Successfully! 🎉</h2>
+            <p className="text-slate-400 mb-6">Your {formData.name} ({formData.symbol}) token is now live on Ramestta Network</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="stat-card">
+                <p className="text-sm text-slate-400">Token Address</p>
+                <div className="flex items-center justify-center gap-2">
+                  <code className="text-blue-400 font-mono text-xs break-all">{deployedToken.address}</code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(deployedToken.address)
+                      toast.success('Address copied!')
+                    }}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="stat-card">
+                <p className="text-sm text-slate-400">Transaction Hash</p>
+                <a
+                  href={getTxUrl(deployedToken.txHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 font-mono text-xs flex items-center justify-center gap-1"
                 >
-                  📋
-                </button>
+                  {deployedToken.txHash.slice(0, 16)}...{deployedToken.txHash.slice(-8)}
+                  <ExternalLink className="w-4 h-4" />
+                </a>
               </div>
             </div>
             
-            <div className="stat-card">
-              <p className="text-sm text-slate-400">Transaction Hash</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
-                href={getTxUrl(deployedToken.txHash)}
+                href={getContractUrl(deployedToken.address)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 font-mono text-sm flex items-center justify-center gap-1"
+                className="btn-primary flex items-center justify-center gap-2"
               >
-                {deployedToken.txHash.slice(0, 20)}...{deployedToken.txHash.slice(-8)}
                 <ExternalLink className="w-4 h-4" />
+                View on Ramascan
               </a>
+              <button onClick={resetForm} className="btn-secondary">
+                Create Another Token
+              </button>
             </div>
           </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a
-              href={getContractUrl(deployedToken.address)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary flex items-center justify-center gap-2"
+
+          {/* How to Import Token */}
+          <div className="glass-card overflow-hidden">
+            <button
+              onClick={() => setShowImportGuide(!showImportGuide)}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-800/50 transition-colors"
             >
-              <ExternalLink className="w-4 h-4" />
-              View on Ramascan
-            </a>
-            <button onClick={resetForm} className="btn-secondary">
-              Create Another Token
+              <div className="flex items-center gap-3">
+                <Wallet className="w-5 h-5 text-blue-400" />
+                <span className="font-semibold text-white">How to Import Token to Wallet</span>
+              </div>
+              {showImportGuide ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
             </button>
+            {showImportGuide && (
+              <div className="p-4 pt-0 border-t border-slate-700">
+                <div className="space-y-4 text-left">
+                  <div className="bg-slate-800/50 rounded-lg p-4">
+                    <h4 className="font-medium text-white mb-3">MetaMask / Trust Wallet / Other Wallets:</h4>
+                    <ol className="space-y-2 text-sm text-slate-300">
+                      <li className="flex gap-2">
+                        <span className="text-blue-400 font-semibold">1.</span>
+                        Open your wallet and make sure you're connected to <strong className="text-white">Ramestta Network (Chain ID: 1370)</strong>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-blue-400 font-semibold">2.</span>
+                        Click on "Import Tokens" or "Add Token"
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-blue-400 font-semibold">3.</span>
+                        Select "Custom Token" and paste the token address:
+                      </li>
+                    </ol>
+                    <div className="mt-3 bg-slate-900 rounded-lg p-3 flex items-center justify-between">
+                      <code className="text-blue-400 font-mono text-xs break-all">{deployedToken.address}</code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(deployedToken.address)
+                          toast.success('Address copied!')
+                        }}
+                        className="text-slate-400 hover:text-white ml-2"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <ol className="space-y-2 text-sm text-slate-300 mt-3" start={4}>
+                      <li className="flex gap-2">
+                        <span className="text-blue-400 font-semibold">4.</span>
+                        Token Symbol (<strong className="text-white">{formData.symbol}</strong>) and Decimals (<strong className="text-white">{formData.decimals}</strong>) should auto-fill
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-blue-400 font-semibold">5.</span>
+                        Click "Add Token" - Your <strong className="text-white">{Number(formData.totalSupply).toLocaleString()} {formData.symbol}</strong> tokens will appear!
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* How to Verify Contract */}
+          <div className="glass-card overflow-hidden">
+            <button
+              onClick={() => setShowVerifyGuide(!showVerifyGuide)}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Check className="w-5 h-5 text-green-400" />
+                <span className="font-semibold text-white">How to Verify Contract on Ramascan</span>
+              </div>
+              {showVerifyGuide ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+            </button>
+            {showVerifyGuide && (
+              <div className="p-4 pt-0 border-t border-slate-700">
+                <div className="space-y-4 text-left">
+                  <div className="bg-slate-800/50 rounded-lg p-4">
+                    <h4 className="font-medium text-white mb-3">Verification Details:</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div className="bg-slate-900 rounded p-3">
+                        <p className="text-slate-400 text-xs">Contract Address</p>
+                        <p className="text-white font-mono text-xs break-all">{deployedToken.address}</p>
+                      </div>
+                      <div className="bg-slate-900 rounded p-3">
+                        <p className="text-slate-400 text-xs">Compiler Version</p>
+                        <p className="text-white font-mono">v0.8.22+commit.4fc1097e</p>
+                      </div>
+                      <div className="bg-slate-900 rounded p-3">
+                        <p className="text-slate-400 text-xs">EVM Version</p>
+                        <p className="text-white font-mono">paris</p>
+                      </div>
+                      <div className="bg-slate-900 rounded p-3">
+                        <p className="text-slate-400 text-xs">Optimization</p>
+                        <p className="text-white font-mono">Yes (200 runs)</p>
+                      </div>
+                      <div className="bg-slate-900 rounded p-3">
+                        <p className="text-slate-400 text-xs">License</p>
+                        <p className="text-white font-mono">MIT</p>
+                      </div>
+                      <div className="bg-slate-900 rounded p-3">
+                        <p className="text-slate-400 text-xs">Contract Name</p>
+                        <p className="text-white font-mono">RAMA20Token</p>
+                      </div>
+                    </div>
+                    
+                    <h4 className="font-medium text-white mt-4 mb-2">Constructor Arguments (ABI Encoded):</h4>
+                    <div className="bg-slate-900 rounded p-3">
+                      <p className="text-slate-400 text-xs mb-2">These are the parameters used to create your token:</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-slate-400">name:</span> <span className="text-white">{formData.name}</span></div>
+                        <div><span className="text-slate-400">symbol:</span> <span className="text-white">{formData.symbol}</span></div>
+                        <div><span className="text-slate-400">decimals:</span> <span className="text-white">{formData.decimals}</span></div>
+                        <div><span className="text-slate-400">initialSupply:</span> <span className="text-white">{formData.totalSupply}</span></div>
+                        <div><span className="text-slate-400">maxSupply:</span> <span className="text-white">{formData.maxSupply || '0'}</span></div>
+                        <div><span className="text-slate-400">mintable:</span> <span className="text-white">{formData.mintable ? 'true' : 'false'}</span></div>
+                        <div><span className="text-slate-400">burnable:</span> <span className="text-white">{formData.burnable ? 'true' : 'false'}</span></div>
+                        <div><span className="text-slate-400">pausable:</span> <span className="text-white">{formData.pausable ? 'true' : 'false'}</span></div>
+                        <div><span className="text-slate-400">owner:</span> <span className="text-white font-mono">{userAddress?.slice(0, 10)}...</span></div>
+                      </div>
+                    </div>
+
+                    <h4 className="font-medium text-white mt-4 mb-2">Steps to Verify:</h4>
+                    <ol className="space-y-2 text-sm text-slate-300">
+                      <li className="flex gap-2">
+                        <span className="text-green-400 font-semibold">1.</span>
+                        Go to <a href={`${getContractUrl(deployedToken.address)}#code`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">your token's contract page on Ramascan</a>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-green-400 font-semibold">2.</span>
+                        Click on "Contract" tab, then "Verify & Publish"
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-green-400 font-semibold">3.</span>
+                        Select "Solidity (Standard JSON Input)" as verification method
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-green-400 font-semibold">4.</span>
+                        Use the source code provided below and the settings shown above
+                      </li>
+                    </ol>
+
+                    <a
+                      href={`${getContractUrl(deployedToken.address)}#code`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary mt-4 inline-flex items-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Verify on Ramascan
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Source Code */}
+          <div className="glass-card overflow-hidden">
+            <button
+              onClick={() => setShowSourceCode(!showSourceCode)}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <FileCode className="w-5 h-5 text-purple-400" />
+                <span className="font-semibold text-white">View Source Code (for Verification)</span>
+              </div>
+              {showSourceCode ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+            </button>
+            {showSourceCode && (
+              <div className="p-4 pt-0 border-t border-slate-700">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm text-slate-400">RAMA20Token.sol</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(RAMA20_TOKEN_SOURCE)
+                      toast.success('Source code copied!')
+                    }}
+                    className="btn-secondary text-sm py-1 px-3 flex items-center gap-1"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy Code
+                  </button>
+                </div>
+                <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto max-h-96 overflow-y-auto">
+                  <pre className="text-xs text-slate-300 font-mono whitespace-pre">{RAMA20_TOKEN_SOURCE}</pre>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Note: This contract uses OpenZeppelin v5.x libraries. When verifying, include OpenZeppelin contracts as dependencies.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
