@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Coins, Loader2, Check, ExternalLink, RefreshCw, Copy, Wallet, FileCode, ChevronDown, ChevronUp, Shield, CheckCircle, XCircle } from 'lucide-react'
+import { Coins, Loader2, Check, ExternalLink, RefreshCw, Copy, Wallet, FileCode, ChevronDown, ChevronUp, Shield, CheckCircle } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useGasPrice } from 'wagmi'
 import { decodeEventLog, formatEther } from 'viem'
 import toast from 'react-hot-toast'
@@ -83,6 +83,7 @@ export default function CreateToken() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle')
   const [verificationMessage, setVerificationMessage] = useState('')
+  const [manualVerifyUrl, setManualVerifyUrl] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
@@ -615,6 +616,8 @@ export default function CreateToken() {
                         return;
                       }
                       
+                      setVerificationMessage('Verifying contract (this may take 30-60 seconds)...');
+                      
                       // Attempt verification
                       const result = await verifyTokenContract({
                         contractAddress: deployedToken.address,
@@ -636,7 +639,9 @@ export default function CreateToken() {
                       } else {
                         setVerificationStatus('failed');
                         setVerificationMessage(result.message);
-                        toast.error('Verification failed. Try manual verification.');
+                        if (result.manualVerificationUrl) {
+                          setManualVerifyUrl(result.manualVerificationUrl);
+                        }
                       }
                     } catch (error) {
                       setVerificationStatus('failed');
@@ -685,30 +690,31 @@ export default function CreateToken() {
             
             {verificationStatus === 'failed' && (
               <div className="space-y-4">
-                <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-lg">
-                  <XCircle className="w-5 h-5 text-red-400 mt-0.5" />
+                <div className="flex items-start gap-3 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                  <Shield className="w-5 h-5 text-yellow-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-white font-medium">Automatic Verification Failed</p>
+                    <p className="text-white font-medium">Manual Verification Required</p>
                     <p className="text-slate-400 text-sm">{verificationMessage}</p>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    onClick={() => {
-                      setVerificationStatus('idle');
-                      setVerificationMessage('');
-                    }}
-                    className="btn-secondary flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Try Again
-                  </button>
+                  {manualVerifyUrl && (
+                    <a
+                      href={manualVerifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Verify on Ramascan
+                    </a>
+                  )}
                   <button
                     onClick={() => setShowVerifyGuide(true)}
                     className="btn-secondary flex items-center justify-center gap-2"
                   >
                     <FileCode className="w-4 h-4" />
-                    Manual Verification Guide
+                    Verification Guide
                   </button>
                 </div>
               </div>
