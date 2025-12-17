@@ -119,41 +119,41 @@ export default function CreateNFT() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <BackButton />
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Create NFT Collection</h1>
-        <p className="text-slate-400 mt-1">Deploy your own NFT collection (RAMA-721) on Ramestta</p>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Create NFT Collection</h1>
+        <p className="text-slate-400 mt-1 text-sm md:text-base">Deploy your own NFT collection (RAMA-721) on Ramestta</p>
       </div>
 
       {/* Progress */}
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex items-center justify-center gap-2 sm:gap-4">
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-semibold text-sm md:text-base ${
               step >= s ? 'bg-pink-500 text-white' : 'bg-slate-700 text-slate-400'
             }`}>
-              {step > s ? <Check className="w-5 h-5" /> : s}
+              {step > s ? <Check className="w-4 h-4 md:w-5 md:h-5" /> : s}
             </div>
-            {s < 3 && <div className={`w-20 h-1 ${step > s ? 'bg-pink-500' : 'bg-slate-700'}`} />}
+            {s < 3 && <div className={`w-8 sm:w-12 md:w-20 h-1 ${step > s ? 'bg-pink-500' : 'bg-slate-700'}`} />}
           </div>
         ))}
       </div>
-      <div className="flex justify-center gap-16 text-sm">
+      <div className="flex justify-center gap-6 sm:gap-10 md:gap-16 text-xs sm:text-sm">
         <span className={step >= 1 ? 'text-white' : 'text-slate-500'}>Details</span>
         <span className={step >= 2 ? 'text-white' : 'text-slate-500'}>Settings</span>
         <span className={step >= 3 ? 'text-white' : 'text-slate-500'}>Success</span>
       </div>
 
       {step === 1 && (
-        <div className="glass-card p-6 max-w-2xl mx-auto">
-          <h2 className="text-xl font-semibold text-white mb-6">Collection Details</h2>
+        <div className="glass-card p-4 md:p-6 max-w-2xl mx-auto">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Collection Details</h2>
 
           <div className="space-y-4">
-            <div className="flex justify-center mb-6">
-              <div className="w-32 h-32 rounded-2xl bg-slate-800 border-2 border-dashed border-slate-600 flex flex-col items-center justify-center cursor-pointer hover:border-pink-500 transition-colors">
-                <Upload className="w-8 h-8 text-slate-500 mb-2" />
+            <div className="flex justify-center mb-4 md:mb-6">
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-slate-800 border-2 border-dashed border-slate-600 flex flex-col items-center justify-center cursor-pointer hover:border-pink-500 transition-colors">
+                <Upload className="w-6 h-6 md:w-8 md:h-8 text-slate-500 mb-2" />
                 <span className="text-xs text-slate-500">Upload Logo</span>
               </div>
             </div>
@@ -207,11 +207,11 @@ export default function CreateNFT() {
       )}
 
       {step === 2 && (
-        <div className="glass-card p-6 max-w-2xl mx-auto">
-          <h2 className="text-xl font-semibold text-white mb-6">Mint Settings</h2>
+        <div className="glass-card p-4 md:p-6 max-w-2xl mx-auto">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Mint Settings</h2>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="input-label">Max Supply</label>
                 <input
@@ -251,9 +251,9 @@ export default function CreateNFT() {
               <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
             </div>
 
-            <div className="stat-card">
-              <p className="text-sm text-slate-400">Creation Fee</p>
-              <p className="text-xl font-bold text-white">0.01 RAMA + Gas</p>
+            <div className="stat-card p-3 md:p-4">
+              <p className="text-xs md:text-sm text-slate-400">Creation Fee</p>
+              <p className="text-lg md:text-xl font-bold text-white">0.01 RAMA + Gas</p>
             </div>
 
             <div className="flex gap-4">
@@ -283,16 +283,16 @@ export default function CreateNFT() {
       )}
 
       {step === 3 && deployedCollection && (
-        <div className="glass-card p-8 max-w-2xl mx-auto text-center">
-          <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-green-400" />
+        <div className="glass-card p-6 md:p-8 max-w-2xl mx-auto text-center">
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4 md:mb-6">
+            <Check className="w-8 h-8 md:w-10 md:h-10 text-green-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Collection Deployed! 🎉</h2>
-          <p className="text-slate-400 mb-6">Your {formData.name} ({formData.symbol}) NFT collection is now live!</p>
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Collection Deployed! 🎉</h2>
+          <p className="text-slate-400 mb-4 md:mb-6 text-sm md:text-base">Your {formData.name} ({formData.symbol}) NFT collection is now live!</p>
           
-          <div className="space-y-4 mb-6">
-            <div className="stat-card">
-              <p className="text-sm text-slate-400">Collection Address</p>
+          <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
+            <div className="stat-card p-3 md:p-4">
+              <p className="text-xs md:text-sm text-slate-400">Collection Address</p>
               <div className="flex items-center justify-center gap-2">
                 <code className="text-pink-400 font-mono text-sm break-all">{deployedCollection.address}</code>
                 <button
@@ -307,8 +307,8 @@ export default function CreateNFT() {
               </div>
             </div>
             
-            <div className="stat-card">
-              <p className="text-sm text-slate-400">Transaction Hash</p>
+            <div className="stat-card p-3 md:p-4">
+              <p className="text-xs md:text-sm text-slate-400">Transaction Hash</p>
               <a
                 href={getTxUrl(deployedCollection.txHash)}
                 target="_blank"

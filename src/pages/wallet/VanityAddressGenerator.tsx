@@ -63,16 +63,16 @@ export default function VanityAddressGenerator() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <BackButton />
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Vanity Address Generator</h1>
-        <p className="text-slate-400 mt-1">Generate custom wallet addresses with specific prefixes or suffixes</p>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Vanity Address Generator</h1>
+        <p className="text-slate-400 mt-1 text-sm md:text-base">Generate custom wallet addresses with specific prefixes or suffixes</p>
       </div>
 
       {/* Generator Form */}
-      <div className="glass-card p-6">
+      <div className="glass-card p-4 md:p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
             <label className="input-label">Address Prefix</label>

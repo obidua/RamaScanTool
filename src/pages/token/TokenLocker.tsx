@@ -222,19 +222,19 @@ export default function TokenLocker() {
   const locks = userLocks || []
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <BackButton />
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Token Locker</h1>
-        <p className="text-slate-400 mt-1">Lock tokens for vesting, LP locks, or team tokens</p>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Token Locker</h1>
+        <p className="text-slate-400 mt-1 text-sm md:text-base">Lock tokens for vesting, LP locks, or team tokens</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2">
         <button
           onClick={() => setActiveTab('create')}
-          className={`px-6 py-3 rounded-xl font-medium transition-colors ${
+          className={`px-4 md:px-6 py-2 md:py-3 rounded-xl font-medium transition-colors text-sm md:text-base ${
             activeTab === 'create' 
               ? 'bg-blue-500 text-white' 
               : 'bg-slate-800 text-slate-400 hover:text-white'
@@ -244,7 +244,7 @@ export default function TokenLocker() {
         </button>
         <button
           onClick={() => setActiveTab('manage')}
-          className={`px-6 py-3 rounded-xl font-medium transition-colors ${
+          className={`px-4 md:px-6 py-2 md:py-3 rounded-xl font-medium transition-colors text-sm md:text-base ${
             activeTab === 'manage' 
               ? 'bg-blue-500 text-white' 
               : 'bg-slate-800 text-slate-400 hover:text-white'
@@ -256,8 +256,8 @@ export default function TokenLocker() {
 
       {/* Create Lock */}
       {activeTab === 'create' && (
-        <div className="glass-card p-6 max-w-2xl">
-          <h2 className="text-xl font-semibold text-white mb-6">Create New Lock</h2>
+        <div className="glass-card p-4 md:p-6 max-w-2xl">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Create New Lock</h2>
 
           <div className="space-y-4">
             <div>
@@ -268,16 +268,16 @@ export default function TokenLocker() {
                 value={formData.tokenAddress}
                 onChange={handleChange}
                 placeholder="0x..."
-                className="input-field font-mono"
+                className="input-field font-mono text-sm md:text-base"
               />
               {tokenSymbol && tokenName && (
-                <p className="text-sm text-green-400 mt-1">
+                <p className="text-xs md:text-sm text-green-400 mt-1">
                   ✓ {tokenName} ({tokenSymbol})
                 </p>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="input-label">Amount to Lock</label>
                 <input
@@ -319,9 +319,9 @@ export default function TokenLocker() {
               />
             </div>
 
-            <div className="stat-card">
-              <p className="text-sm text-slate-400">Lock Fee</p>
-              <p className="text-xl font-bold text-white">0.01 RAMA</p>
+            <div className="stat-card p-3 md:p-4">
+              <p className="text-xs md:text-sm text-slate-400">Lock Fee</p>
+              <p className="text-lg md:text-xl font-bold text-white">0.01 RAMA</p>
             </div>
 
             <div className="flex gap-4">
@@ -367,9 +367,9 @@ export default function TokenLocker() {
       {activeTab === 'manage' && (
         <div className="space-y-4">
           {locks.filter(l => !l.withdrawn).length === 0 ? (
-            <div className="glass-card p-12 text-center">
-              <Lock className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-              <p className="text-slate-400">No locked tokens found</p>
+            <div className="glass-card p-8 md:p-12 text-center">
+              <Lock className="w-10 h-10 md:w-12 md:h-12 text-slate-500 mx-auto mb-4" />
+              <p className="text-slate-400 text-sm md:text-base">No locked tokens found</p>
               <button
                 onClick={() => setActiveTab('create')}
                 className="btn-primary mt-4"
@@ -378,23 +378,23 @@ export default function TokenLocker() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {locks.filter(l => !l.withdrawn).map((lock) => (
-                <div key={lock.id.toString()} className="glass-card p-6">
+                <div key={lock.id.toString()} className="glass-card p-4 md:p-6">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-3 rounded-xl ${
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className={`p-2 md:p-3 rounded-xl ${
                         isUnlockable(lock) ? 'bg-green-500/20' : 'bg-blue-500/20'
                       }`}>
                         {isUnlockable(lock) ? (
-                          <Unlock className="w-6 h-6 text-green-400" />
+                          <Unlock className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
                         ) : (
-                          <Lock className="w-6 h-6 text-blue-400" />
+                          <Lock className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
                         )}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-white">{lock.description || 'Token Lock'}</h3>
-                        <p className="text-xs text-slate-500 font-mono">
+                        <h3 className="font-semibold text-white text-sm md:text-base">{lock.description || 'Token Lock'}</h3>
+                        <p className="text-xs text-slate-500 font-mono truncate max-w-[120px] sm:max-w-none">
                           {lock.token.slice(0, 10)}...{lock.token.slice(-8)}
                         </p>
                       </div>
@@ -404,18 +404,18 @@ export default function TokenLocker() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
                     <div>
                       <p className="text-xs text-slate-500">Amount Locked</p>
-                      <p className="text-lg font-semibold text-white">
+                      <p className="text-base md:text-lg font-semibold text-white">
                         {Number(formatUnits(lock.amount, 18)).toLocaleString()}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">Unlock Date</p>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-slate-400" />
-                        <p className="text-lg font-semibold text-white">{formatDate(lock.unlockTime)}</p>
+                      <div className="flex items-center gap-1 md:gap-2">
+                        <Clock className="w-3 h-3 md:w-4 md:h-4 text-slate-400" />
+                        <p className="text-base md:text-lg font-semibold text-white">{formatDate(lock.unlockTime)}</p>
                       </div>
                     </div>
                   </div>

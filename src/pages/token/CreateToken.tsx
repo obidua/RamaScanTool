@@ -259,26 +259,26 @@ export default function CreateToken() {
       <BackButton />
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Create Token</h1>
-        <p className="text-slate-400 mt-1">Deploy your own RAMA-20 token on Ramestta Network in minutes</p>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Create Token</h1>
+        <p className="text-slate-400 mt-1 text-sm md:text-base">Deploy your own RAMA-20 token on Ramestta Network in minutes</p>
       </div>
 
       {/* Progress Steps */}
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex items-center justify-center gap-1 sm:gap-2 md:gap-4 overflow-x-auto px-2">
         {[1, 2, 3, 4].map((s) => (
           <div key={s} className="flex items-center">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-semibold text-sm md:text-base ${
               step >= s ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'
             }`}>
-              {step > s ? <Check className="w-5 h-5" /> : s}
+              {step > s ? <Check className="w-4 h-4 md:w-5 md:h-5" /> : s}
             </div>
             {s < 4 && (
-              <div className={`w-16 h-1 ${step > s ? 'bg-blue-500' : 'bg-slate-700'}`} />
+              <div className={`w-6 sm:w-10 md:w-16 h-1 ${step > s ? 'bg-blue-500' : 'bg-slate-700'}`} />
             )}
           </div>
         ))}
       </div>
-      <div className="flex justify-center gap-12 text-sm">
+      <div className="flex justify-center gap-3 sm:gap-6 md:gap-12 text-xs sm:text-sm">
         <span className={step >= 1 ? 'text-white' : 'text-slate-500'}>Token Info</span>
         <span className={step >= 2 ? 'text-white' : 'text-slate-500'}>Features</span>
         <span className={step >= 3 ? 'text-white' : 'text-slate-500'}>Deploy</span>
@@ -287,8 +287,8 @@ export default function CreateToken() {
 
       {/* Step 1: Basic Info */}
       {step === 1 && (
-        <div className="glass-card p-6 max-w-2xl mx-auto">
-          <h2 className="text-xl font-semibold text-white mb-6">Token Information</h2>
+        <div className="glass-card p-4 md:p-6 max-w-2xl mx-auto">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Token Information</h2>
           
           <div className="space-y-4">
             <div>
@@ -316,7 +316,7 @@ export default function CreateToken() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="input-label">Decimals</label>
                 <input
@@ -361,14 +361,14 @@ export default function CreateToken() {
 
       {/* Step 2: Features */}
       {step === 2 && (
-        <div className="glass-card p-6 max-w-2xl mx-auto">
-          <h2 className="text-xl font-semibold text-white mb-6">Token Features</h2>
+        <div className="glass-card p-4 md:p-6 max-w-2xl mx-auto">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Token Features</h2>
           
-          <div className="space-y-4">
-            <label className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
-              <div>
-                <p className="font-medium text-white">Mintable</p>
-                <p className="text-sm text-slate-400">Allow minting new tokens after deployment</p>
+          <div className="space-y-3 md:space-y-4">
+            <label className="flex items-center justify-between p-3 md:p-4 bg-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
+              <div className="flex-1 mr-3">
+                <p className="font-medium text-white text-sm md:text-base">Mintable</p>
+                <p className="text-xs md:text-sm text-slate-400">Allow minting new tokens after deployment</p>
               </div>
               <input
                 type="checkbox"
@@ -379,10 +379,10 @@ export default function CreateToken() {
               />
             </label>
 
-            <label className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
-              <div>
-                <p className="font-medium text-white">Burnable</p>
-                <p className="text-sm text-slate-400">Allow burning tokens to reduce supply</p>
+            <label className="flex items-center justify-between p-3 md:p-4 bg-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
+              <div className="flex-1 mr-3">
+                <p className="font-medium text-white text-sm md:text-base">Burnable</p>
+                <p className="text-xs md:text-sm text-slate-400">Allow burning tokens to reduce supply</p>
               </div>
               <input
                 type="checkbox"
@@ -393,10 +393,10 @@ export default function CreateToken() {
               />
             </label>
 
-            <label className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
-              <div>
-                <p className="font-medium text-white">Pausable</p>
-                <p className="text-sm text-slate-400">Allow pausing all token transfers</p>
+            <label className="flex items-center justify-between p-3 md:p-4 bg-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
+              <div className="flex-1 mr-3">
+                <p className="font-medium text-white text-sm md:text-base">Pausable</p>
+                <p className="text-xs md:text-sm text-slate-400">Allow pausing all token transfers</p>
               </div>
               <input
                 type="checkbox"
@@ -436,26 +436,26 @@ export default function CreateToken() {
 
       {/* Step 3: Review & Deploy */}
       {step === 3 && (
-        <div className="glass-card p-6 max-w-2xl mx-auto">
-          <h2 className="text-xl font-semibold text-white mb-6">Review & Deploy</h2>
+        <div className="glass-card p-4 md:p-6 max-w-2xl mx-auto">
+          <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Review & Deploy</h2>
           
-          <div className="space-y-4 mb-6">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
+            <div className="grid grid-cols-2 gap-2 md:gap-4">
               <div className="stat-card">
-                <p className="text-sm text-slate-400">Name</p>
-                <p className="text-lg font-semibold text-white">{formData.name}</p>
+                <p className="text-xs md:text-sm text-slate-400">Name</p>
+                <p className="text-sm md:text-lg font-semibold text-white truncate">{formData.name}</p>
               </div>
               <div className="stat-card">
-                <p className="text-sm text-slate-400">Symbol</p>
-                <p className="text-lg font-semibold text-white">{formData.symbol}</p>
+                <p className="text-xs md:text-sm text-slate-400">Symbol</p>
+                <p className="text-sm md:text-lg font-semibold text-white">{formData.symbol}</p>
               </div>
               <div className="stat-card">
-                <p className="text-sm text-slate-400">Total Supply</p>
-                <p className="text-lg font-semibold text-white">{Number(formData.totalSupply).toLocaleString()}</p>
+                <p className="text-xs md:text-sm text-slate-400">Total Supply</p>
+                <p className="text-sm md:text-lg font-semibold text-white">{Number(formData.totalSupply).toLocaleString()}</p>
               </div>
               <div className="stat-card">
-                <p className="text-sm text-slate-400">Decimals</p>
-                <p className="text-lg font-semibold text-white">{formData.decimals}</p>
+                <p className="text-xs md:text-sm text-slate-400">Decimals</p>
+                <p className="text-sm md:text-lg font-semibold text-white">{formData.decimals}</p>
               </div>
             </div>
 

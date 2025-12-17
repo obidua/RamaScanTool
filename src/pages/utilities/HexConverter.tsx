@@ -89,12 +89,12 @@ export default function HexConverter() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <BackButton />
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Hex Converter</h1>
-        <p className="text-slate-400 mt-1">Convert between different number formats and units</p>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Hex Converter</h1>
+        <p className="text-slate-400 mt-1 text-sm md:text-base">Convert between different number formats and units</p>
       </div>
 
       {/* Decimal <-> Hex */}

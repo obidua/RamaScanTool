@@ -56,16 +56,16 @@ export default function NFTMultiSender() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <BackButton />
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">NFT MultiSender</h1>
-        <p className="text-slate-400 mt-1">Send multiple NFTs to different addresses in batch</p>
+        <h1 className="text-xl md:text-2xl font-bold text-white">NFT MultiSender</h1>
+        <p className="text-slate-400 mt-1 text-sm md:text-base">Send multiple NFTs to different addresses in batch</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass-card p-6">
+        <div className="lg:col-span-2 glass-card p-4 md:p-6">
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
