@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Coins, Loader2, Check, ExternalLink } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { parseEther, parseUnits, decodeEventLog } from 'viem'
+import { parseEther, decodeEventLog } from 'viem'
 import toast from 'react-hot-toast'
 import BackButton from '../../components/BackButton'
 import NetworkSelector from '../../components/NetworkSelector'
@@ -24,11 +24,21 @@ export default function CreateToken() {
     pausable: false,
   })
 
-  const { data: hash, writeContract, isPending, reset } = useWriteContract()
+  const { data: hash, writeContract, isPending, reset, error: writeError } = useWriteContract()
   
   const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({
     hash,
   })
+
+  // Handle write error
+  useEffect(() => {
+    if (writeError) {
+      console.error('Write contract error:', writeError)
+      toast.error(writeError.message?.includes('User rejected') 
+        ? 'Transaction rejected by user' 
+        : 'Failed to deploy token: ' + (writeError.message || 'Unknown error'))
+    }
+  }, [writeError])
 
   // Handle successful transaction
   useEffect(() => {
@@ -84,10 +94,23 @@ export default function CreateToken() {
     }
 
     try {
-      const initialSupply = parseUnits(formData.totalSupply, formData.decimals)
+      // Contract multiplies by 10^decimals internally, so we pass raw supply
+      const initialSupply = BigInt(formData.totalSupply)
       const maxSupply = formData.maxSupply && formData.maxSupply !== '0' 
-        ? parseUnits(formData.maxSupply, formData.decimals) 
+        ? BigInt(formData.maxSupply)
         : 0n
+
+      console.log('Deploying token with params:', {
+        name: formData.name,
+        symbol: formData.symbol,
+        decimals: formData.decimals,
+        initialSupply: initialSupply.toString(),
+        maxSupply: maxSupply.toString(),
+        mintable: formData.mintable,
+        burnable: formData.burnable,
+        pausable: formData.pausable,
+        factoryAddress: CONTRACT_ADDRESSES.RAMA20Factory,
+      })
 
       writeContract({
         address: CONTRACT_ADDRESSES.RAMA20Factory as `0x${string}`,
@@ -103,7 +126,7 @@ export default function CreateToken() {
           formData.burnable,
           formData.pausable,
         ],
-        value: parseEther('0.01'), // Creation fee
+        value: parseEther('0.001'), // Creation fee (0.001 RAMA)
       })
     } catch (error: unknown) {
       console.error('Deploy error:', error)
@@ -347,8 +370,8 @@ export default function CreateToken() {
             </div>
 
             <div className="stat-card">
-              <p className="text-sm text-slate-400">Creation Fee</p>
-              <p className="text-lg font-semibold text-white">0.01 RAMA + Gas</p>
+              <p className="text-sm text-slate-400">Estimated Gas Fee</p>
+              <p className="text-lg font-semibold text-white">~0.001 RAMA ($0.001)</p>
             </div>
           </div>
 
