@@ -7,7 +7,7 @@ import BackButton from '../../components/BackButton'
 import NetworkSelector from '../../components/NetworkSelector'
 import { CONTRACT_ADDRESSES, getTxUrl, getContractUrl } from '../../config/contracts'
 import { RAMA20FactoryABI } from '../../config/abis'
-import { verifyTokenContract, getVerificationStatus } from '../../services/verifyContract'
+import { verifyTokenContract, getVerificationStatus, copySourceCode } from '../../services/verifyContract'
 
 // RAMA20Token source code for verification
 const RAMA20_TOKEN_SOURCE = `// SPDX-License-Identifier: MIT
@@ -592,33 +592,48 @@ export default function CreateToken() {
               <h3 className="text-lg font-semibold text-white">Verify Contract on Ramascan</h3>
             </div>
             
-            {verificationStatus === 'idle' && (
+            <p className="text-slate-400 text-sm mb-4">
+              Verify your token contract to make the source code publicly visible on Ramascan. 
+              This builds trust with your token holders.
+            </p>
+
+            {/* Verification Status */}
+            {verificationStatus === 'success' ? (
+              <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <div className="flex-1">
+                  <p className="text-white font-medium">Contract Verified! ✓</p>
+                  <p className="text-slate-400 text-sm">{verificationMessage}</p>
+                </div>
+                <a
+                  href={`${getContractUrl(deployedToken.address)}#code`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 flex items-center gap-1 text-sm"
+                >
+                  View Code <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            ) : verificationStatus === 'pending' ? (
+              <div className="flex items-center gap-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                <div className="flex-1">
+                  <p className="text-white font-medium">Verifying Contract...</p>
+                  <p className="text-slate-400 text-sm">{verificationMessage}</p>
+                </div>
+              </div>
+            ) : (
               <div className="space-y-4">
-                <p className="text-slate-400 text-sm">
-                  Verify your token contract to make the source code publicly visible on Ramascan. 
-                  This builds trust with your token holders.
-                </p>
+                {/* One-Click Automatic Verification */}
                 <button
                   onClick={async () => {
                     if (!deployedToken || !userAddress) return;
                     
                     setIsVerifying(true);
                     setVerificationStatus('pending');
-                    setVerificationMessage('Submitting verification request...');
+                    setVerificationMessage('Starting automatic verification...');
                     
                     try {
-                      // Check if already verified
-                      const status = await getVerificationStatus(deployedToken.address);
-                      if (status.verified) {
-                        setVerificationStatus('success');
-                        setVerificationMessage('Contract is already verified!');
-                        toast.success('Contract is already verified!');
-                        return;
-                      }
-                      
-                      setVerificationMessage('Verifying contract (this may take 30-60 seconds)...');
-                      
-                      // Attempt verification
                       const result = await verifyTokenContract({
                         contractAddress: deployedToken.address,
                         name: formData.name,
@@ -642,6 +657,7 @@ export default function CreateToken() {
                         if (result.manualVerificationUrl) {
                           setManualVerifyUrl(result.manualVerificationUrl);
                         }
+                        toast.error('Auto-verification failed. Try manual verification.');
                       }
                     } catch (error) {
                       setVerificationStatus('failed');
@@ -652,71 +668,90 @@ export default function CreateToken() {
                     }
                   }}
                   disabled={isVerifying}
-                  className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
+                  className="btn-primary w-full flex items-center justify-center gap-2 py-3"
                 >
-                  <Shield className="w-5 h-5" />
-                  Verify Contract
-                </button>
-              </div>
-            )}
-            
-            {verificationStatus === 'pending' && (
-              <div className="flex items-center gap-3 p-4 bg-blue-500/10 rounded-lg">
-                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                <div>
-                  <p className="text-white font-medium">Verifying Contract...</p>
-                  <p className="text-slate-400 text-sm">{verificationMessage}</p>
-                </div>
-              </div>
-            )}
-            
-            {verificationStatus === 'success' && (
-              <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-400" />
-                <div className="flex-1">
-                  <p className="text-white font-medium">Contract Verified!</p>
-                  <p className="text-slate-400 text-sm">{verificationMessage}</p>
-                </div>
-                <a
-                  href={`${getContractUrl(deployedToken.address)}#code`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 flex items-center gap-1 text-sm"
-                >
-                  View Code <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            )}
-            
-            {verificationStatus === 'failed' && (
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                  <Shield className="w-5 h-5 text-yellow-400 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-white font-medium">Manual Verification Required</p>
-                    <p className="text-slate-400 text-sm">{verificationMessage}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {manualVerifyUrl && (
-                    <a
-                      href={manualVerifyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-primary flex items-center justify-center gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Verify on Ramascan
-                    </a>
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-5 h-5" />
+                      🚀 Verify Contract Automatically
+                    </>
                   )}
-                  <button
-                    onClick={() => setShowVerifyGuide(true)}
-                    className="btn-secondary flex items-center justify-center gap-2"
-                  >
-                    <FileCode className="w-4 h-4" />
-                    Verification Guide
-                  </button>
-                </div>
+                </button>
+
+                {/* Failed status with manual option */}
+                {verificationStatus === 'failed' && (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                      <Shield className="w-5 h-5 text-yellow-400 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-white font-medium">Automatic Verification Failed</p>
+                        <p className="text-slate-400 text-sm">{verificationMessage}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {manualVerifyUrl && (
+                        <a
+                          href={manualVerifyUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary flex items-center gap-2"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Verify Manually
+                        </a>
+                      )}
+                      <button
+                        onClick={async () => {
+                          const success = await copySourceCode();
+                          if (success) {
+                            toast.success('Source code copied!');
+                          }
+                        }}
+                        className="btn-secondary flex items-center gap-2"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy Source Code
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Check Status Button */}
+                {verificationStatus === 'idle' && (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <button
+                      onClick={async () => {
+                        if (!deployedToken) return;
+                        setIsVerifying(true);
+                        try {
+                          const status = await getVerificationStatus(deployedToken.address);
+                          if (status.verified) {
+                            setVerificationStatus('success');
+                            setVerificationMessage('Contract is already verified!');
+                            toast.success('Contract is already verified!');
+                          } else {
+                            toast('Not verified yet. Click the button above to verify.', { icon: 'ℹ️' });
+                          }
+                        } catch {
+                          toast.error('Could not check status');
+                        } finally {
+                          setIsVerifying(false);
+                        }
+                      }}
+                      disabled={isVerifying}
+                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Check if already verified
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

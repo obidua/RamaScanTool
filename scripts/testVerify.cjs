@@ -1,36 +1,16 @@
-// Ramascan (Blockscout) Automatic Contract Verification Service
-// Uses the Etherscan-compatible API format (same as hardhat verify)
+/**
+ * Test Token Verification Script
+ * Tests the verification API directly (matches hardhat.config.cjs settings)
+ */
 
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
+const fs = require('fs');
+const path = require('path');
 
-// API Endpoints - matches hardhat.config.cjs etherscan settings
+// API endpoint matches hardhat.config.cjs etherscan.customChains
 const RAMASCAN_API = 'https://latest-backendapi.ramascan.com/api/v1';
-const RAMASCAN_BASE = 'https://ramascan.com';
 
-export interface VerificationParams {
-  contractAddress: string;
-  name: string;
-  symbol: string;
-  decimals: number;
-  initialSupply: string;
-  maxSupply: string;
-  mintable: boolean;
-  burnable: boolean;
-  pausable: boolean;
-  ownerAddress: string;
-}
-
-export interface VerificationResult {
-  success: boolean;
-  message: string;
-  verificationUrl?: string;
-  manualVerificationUrl?: string;
-  isAlreadyVerified?: boolean;
-  isPending?: boolean;
-}
-
-// Flattened source code for RAMA20Token
-const FLATTENED_SOURCE = `// SPDX-License-Identifier: MIT
+// Read the flattened source code
+const SOURCE_CODE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
 abstract contract Context {
@@ -172,237 +152,59 @@ contract RAMA20Token is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
     function _update(address from, address to, uint256 value) internal virtual override(ERC20, ERC20Pausable) { super._update(from, to, value); }
 }`;
 
-// Check if contract is already verified
-export async function checkIfVerified(contractAddress: string): Promise<boolean> {
+async function testVerification(contractAddress) {
+  console.log('\n🔍 Testing verification for:', contractAddress);
+  
+  // Build form data with Etherscan-compatible field names
+  const formData = new URLSearchParams();
+  formData.append('module', 'contract');
+  formData.append('action', 'verifysourcecode');
+  formData.append('codeformat', 'solidity-single-file');
+  // Use 'contractaddress' not 'addressHash'
+  formData.append('contractaddress', contractAddress);
+  formData.append('contractname', 'RAMA20Token');
+  formData.append('compilerversion', 'v0.8.22+commit.4fc1097e');
+  // Use 'optimizationUsed' and 'runs'
+  formData.append('optimizationUsed', '1');
+  formData.append('runs', '200');
+  formData.append('evmversion', 'paris');
+  formData.append('viaIR', 'true');
+  formData.append('sourceCode', SOURCE_CODE);
+  
+  console.log('\n📤 Submitting to:', RAMASCAN_API);
+  console.log('   Source code length:', SOURCE_CODE.length, 'chars');
+  
   try {
-    const url = RAMASCAN_API + '?module=contract&action=getsourcecode&address=' + contractAddress;
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.status === '1' && data.result?.[0]?.SourceCode) {
-        return true;
-      }
-    }
-    return false;
-  } catch (error) {
-    console.error('Error checking verification:', error);
-    return false;
-  }
-}
-
-// Get verification status
-export async function getVerificationStatus(contractAddress: string): Promise<{
-  verified: boolean;
-  contractName?: string;
-}> {
-  try {
-    const url = RAMASCAN_API + '?module=contract&action=getsourcecode&address=' + contractAddress;
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.status === '1' && data.result?.[0]?.SourceCode) {
-        return { verified: true, contractName: data.result[0].ContractName };
-      }
-    }
-    return { verified: false };
-  } catch {
-    return { verified: false };
-  }
-}
-
-// Encode constructor arguments
-function encodeConstructorArgs(params: VerificationParams): string {
-  try {
-    const encoded = encodeAbiParameters(
-      parseAbiParameters('string, string, uint8, uint256, uint256, bool, bool, bool, address'),
-      [
-        params.name,
-        params.symbol,
-        params.decimals,
-        BigInt(params.initialSupply),
-        BigInt(params.maxSupply || '0'),
-        params.mintable,
-        params.burnable,
-        params.pausable,
-        params.ownerAddress as `0x${string}`
-      ]
-    );
-    return encoded.slice(2);
-  } catch (error) {
-    console.error('Error encoding args:', error);
-    return '';
-  }
-}
-
-// Submit verification - matches hardhat.config.cjs compiler settings
-// Uses Etherscan-compatible API field names
-async function submitVerification(
-  contractAddress: string,
-  sourceCode: string,
-  constructorArgs: string
-): Promise<{ success: boolean; message: string; guid?: string }> {
-  try {
-    const formData = new URLSearchParams();
-    formData.append('module', 'contract');
-    formData.append('action', 'verifysourcecode');
-    formData.append('codeformat', 'solidity-single-file');
-    // Use 'contractaddress' not 'addressHash' (Etherscan-compatible)
-    formData.append('contractaddress', contractAddress);
-    formData.append('contractname', 'RAMA20Token');
-    formData.append('compilerversion', 'v0.8.22+commit.4fc1097e');
-    // Use 'optimizationUsed' and 'runs' (Etherscan-compatible)
-    formData.append('optimizationUsed', '1');
-    formData.append('runs', '200');
-    formData.append('evmversion', 'paris');
-    // viaIR is enabled in hardhat.config.cjs
-    formData.append('viaIR', 'true');
-    formData.append('sourceCode', sourceCode);
-    if (constructorArgs) {
-      // Etherscan uses 'constructorArguements' (yes, misspelled)
-      formData.append('constructorArguements', constructorArgs);
-    }
-
-    console.log('Submitting verification for:', contractAddress);
-    console.log('API Endpoint:', RAMASCAN_API);
-
     const response = await fetch(RAMASCAN_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
       body: formData.toString(),
     });
-
-    const data = await response.json();
-    console.log('API Response:', data);
-
-    if (data.status === '1' || data.message === 'OK') {
-      return { success: true, message: 'Verification submitted!', guid: data.result };
-    }
-
-    if (data.result?.toLowerCase().includes('already verified')) {
-      return { success: true, message: 'Already verified!' };
-    }
-
-    return { success: false, message: data.result || data.message || 'Failed' };
-  } catch (error) {
-    console.error('Verification error:', error);
-    return { success: false, message: error instanceof Error ? error.message : 'Network error' };
-  }
-}
-
-// Check GUID status
-async function checkGuidStatus(guid: string): Promise<{ success: boolean; message: string }> {
-  try {
-    const url = RAMASCAN_API + '?module=contract&action=checkverifystatus&guid=' + guid;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.status === '1') {
-      return { success: true, message: 'Verified!' };
-    }
-    if (data.result?.toLowerCase().includes('pending')) {
-      return { success: false, message: 'Pending...' };
-    }
-    return { success: false, message: data.result || 'Unknown' };
-  } catch {
-    return { success: false, message: 'Check failed' };
-  }
-}
-
-// Main verification function
-export async function verifyTokenContract(params: VerificationParams): Promise<VerificationResult> {
-  const { contractAddress } = params;
-  
-  console.log('Starting verification for:', contractAddress);
-
-  // Check if already verified
-  const isVerified = await checkIfVerified(contractAddress);
-  if (isVerified) {
-    return {
-      success: true,
-      message: 'Contract is already verified! ✓',
-      verificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract',
-      isAlreadyVerified: true
-    };
-  }
-
-  // Prepare and submit
-  const constructorArgs = encodeConstructorArgs(params);
-  const result = await submitVerification(contractAddress, FLATTENED_SOURCE, constructorArgs);
-
-  if (result.success && result.guid) {
-    // Poll for completion
-    for (let i = 0; i < 6; i++) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      const status = await checkGuidStatus(result.guid);
-      if (status.success) {
-        return {
-          success: true,
-          message: 'Contract verified successfully! 🎉',
-          verificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract'
-        };
-      }
-      
-      const directCheck = await checkIfVerified(contractAddress);
-      if (directCheck) {
-        return {
-          success: true,
-          message: 'Contract verified successfully! 🎉',
-          verificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract'
-        };
-      }
-    }
     
-    return {
-      success: true,
-      message: 'Verification submitted! May take a few minutes.',
-      verificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract',
-      isPending: true
-    };
-  }
-
-  if (result.success) {
-    return {
-      success: true,
-      message: result.message,
-      verificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract'
-    };
-  }
-
-  return {
-    success: false,
-    message: result.message,
-    manualVerificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '/verify-via-flattened-code/new',
-    verificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract'
-  };
-}
-
-// Get verification URLs
-export function getVerificationUrls(contractAddress: string) {
-  return {
-    flattenedCode: RAMASCAN_BASE + '/address/' + contractAddress + '/verify-via-flattened-code/new',
-    standardJson: RAMASCAN_BASE + '/address/' + contractAddress + '/verify-via-standard-json-input/new',
-    contractPage: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract',
-  };
-}
-
-// Open verification page
-export function openVerificationPage(contractAddress: string): void {
-  const urls = getVerificationUrls(contractAddress);
-  window.open(urls.flattenedCode, '_blank', 'noopener,noreferrer');
-}
-
-// Copy source code
-export async function copySourceCode(): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(FLATTENED_SOURCE);
-    return true;
-  } catch {
-    return false;
+    const data = await response.json();
+    console.log('\n📥 Response:', JSON.stringify(data, null, 2));
+    
+    if (data.status === '1') {
+      console.log('\n✅ Verification submitted! GUID:', data.result);
+      
+      // Wait and check status
+      console.log('\n⏳ Waiting 10 seconds then checking status...');
+      await new Promise(r => setTimeout(r, 10000));
+      
+      const statusUrl = `${RAMASCAN_API}?module=contract&action=checkverifystatus&guid=${data.result}`;
+      const statusRes = await fetch(statusUrl);
+      const statusData = await statusRes.json();
+      console.log('📋 Status:', JSON.stringify(statusData, null, 2));
+    } else {
+      console.log('\n❌ Verification failed:', data.result || data.message);
+    }
+  } catch (error) {
+    console.error('\n❌ Error:', error);
   }
 }
 
-// Export source code getter
-export function generateFlattenedSource(): string {
-  return FLATTENED_SOURCE;
-}
+// Run test
+const contractAddress = process.argv[2] || '0x2f5b8176C3eD12885682798C1fF083Ec7912D0eF';
+testVerification(contractAddress);
