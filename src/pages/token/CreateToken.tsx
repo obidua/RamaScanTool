@@ -243,6 +243,15 @@ export default function CreateToken() {
     setStep(1)
     setDeployedToken(null)
     reset()
+    // Reset verification state
+    setVerificationStatus('idle')
+    setVerificationMessage('')
+    setManualVerifyUrl('')
+    setIsVerifying(false)
+    setShowImportGuide(false)
+    setShowVerifyGuide(false)
+    setShowSourceCode(false)
+    // Reset form data
     setFormData({
       name: '',
       symbol: '',
