@@ -176,8 +176,10 @@ contract RAMA20Token is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
 // Check if contract is already verified using V2 API
 export async function checkIfVerified(contractAddress: string): Promise<boolean> {
   try {
+    // Normalize address to lowercase for API compatibility
+    const normalizedAddress = contractAddress.toLowerCase();
     // Try V2 API first (Blockscout native)
-    const v2Response = await fetch(`${RAMASCAN_API_V2}/smart-contracts/${contractAddress}`);
+    const v2Response = await fetch(`${RAMASCAN_API_V2}/smart-contracts/${normalizedAddress}`);
     if (v2Response.ok) {
       const data = await v2Response.json();
       if (data.is_verified === true) {
@@ -197,7 +199,9 @@ export async function getVerificationStatus(contractAddress: string): Promise<{
   contractName?: string;
 }> {
   try {
-    const response = await fetch(`${RAMASCAN_API_V2}/smart-contracts/${contractAddress}`);
+    // Normalize address to lowercase for API compatibility
+    const normalizedAddress = contractAddress.toLowerCase();
+    const response = await fetch(`${RAMASCAN_API_V2}/smart-contracts/${normalizedAddress}`);
     if (response.ok) {
       const data = await response.json();
       if (data.is_verified === true) {
@@ -235,33 +239,33 @@ function encodeConstructorArgs(params: VerificationParams): string {
 }
 
 // Submit verification using V2 API (Blockscout native) - more reliable
+// Uses FormData for compatibility with Blockscout's API
 async function submitVerificationV2(
   contractAddress: string,
   sourceCode: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const url = `${RAMASCAN_API_V2}/smart-contracts/${contractAddress}/verification/via/flattened-code`;
+    // Normalize address to lowercase for API compatibility
+    const normalizedAddress = contractAddress.toLowerCase();
+    const url = `${RAMASCAN_API_V2}/smart-contracts/${normalizedAddress}/verification/via/flattened-code`;
     
-    const body = {
-      compiler_version: 'v0.8.22+commit.4fc1097e',
-      source_code: sourceCode,
-      is_optimization_enabled: true,
-      optimization_runs: 200,
-      contract_name: 'RAMA20Token',
-      evm_version: 'paris',
-      is_via_ir: true
-    };
+    // Use FormData for Blockscout V2 API (more reliable than JSON)
+    const formData = new FormData();
+    formData.append('compiler_version', 'v0.8.22+commit.4fc1097e');
+    formData.append('source_code', sourceCode);
+    formData.append('is_optimization_enabled', 'true');
+    formData.append('optimization_runs', '200');
+    formData.append('contract_name', 'RAMA20Token');
+    formData.append('evm_version', 'paris');
+    formData.append('is_via_ir', 'true');
 
-    console.log('Submitting verification via V2 API for:', contractAddress);
+    console.log('Submitting verification via V2 API for:', normalizedAddress);
     console.log('V2 URL:', url);
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(body)
+      body: formData
+      // Note: Don't set Content-Type header - browser will set it with boundary for FormData
     });
 
     console.log('V2 Response status:', response.status);
@@ -300,11 +304,14 @@ async function submitVerificationV1(
   constructorArgs: string
 ): Promise<{ success: boolean; message: string; guid?: string }> {
   try {
+    // Normalize address to lowercase for API compatibility
+    const normalizedAddress = contractAddress.toLowerCase();
+    
     const formData = new URLSearchParams();
     formData.append('module', 'contract');
     formData.append('action', 'verifysourcecode');
     formData.append('codeformat', 'solidity-single-file');
-    formData.append('contractaddress', contractAddress);
+    formData.append('contractaddress', normalizedAddress);
     formData.append('contractname', 'RAMA20Token');
     formData.append('compilerversion', 'v0.8.22+commit.4fc1097e');
     formData.append('optimizationUsed', '1');
@@ -316,7 +323,7 @@ async function submitVerificationV1(
       formData.append('constructorArguements', constructorArgs);
     }
 
-    console.log('Fallback: Submitting via V1 API for:', contractAddress);
+    console.log('Fallback: Submitting via V1 API for:', normalizedAddress);
 
     const response = await fetch(RAMASCAN_API_V1, {
       method: 'POST',
@@ -363,7 +370,8 @@ async function checkGuidStatus(guid: string): Promise<{ success: boolean; messag
 
 // Main verification function
 export async function verifyTokenContract(params: VerificationParams): Promise<VerificationResult> {
-  const { contractAddress } = params;
+  // Normalize address to lowercase for API compatibility
+  const contractAddress = params.contractAddress.toLowerCase();
   
   console.log('Starting verification for:', contractAddress);
 
@@ -382,23 +390,50 @@ export async function verifyTokenContract(params: VerificationParams): Promise<V
   // This is necessary because just-deployed contracts need time to be indexed
   console.log('Waiting for contract to be indexed...');
   let contractIndexed = false;
-  for (let attempt = 0; attempt < 10; attempt++) {
+  
+  // First check if address has contract code (faster than smart-contracts endpoint)
+  for (let attempt = 0; attempt < 20; attempt++) {
     try {
-      const response = await fetch(`${RAMASCAN_API_V2}/smart-contracts/${contractAddress}`);
-      if (response.status !== 404) {
-        contractIndexed = true;
-        console.log('Contract indexed after', (attempt + 1) * 3, 'seconds');
-        break;
+      // Check addresses endpoint first - it indexes faster
+      const addressResponse = await fetch(`${RAMASCAN_API_V2}/addresses/${contractAddress}`);
+      if (addressResponse.ok) {
+        const addressData = await addressResponse.json();
+        // Check if it's recognized as having contract properties
+        if (addressData.is_contract || addressData.has_decompiled_code !== undefined) {
+          console.log('Address found, checking smart-contracts endpoint...');
+          
+          // Now check if smart-contracts endpoint is ready
+          const scResponse = await fetch(`${RAMASCAN_API_V2}/smart-contracts/${contractAddress}`);
+          if (scResponse.ok) {
+            contractIndexed = true;
+            console.log('Contract indexed after', (attempt + 1) * 3, 'seconds');
+            break;
+          }
+          
+          // If smart-contracts returns 404 but address exists, try verification anyway
+          // The verification endpoint might work even if smart-contracts endpoint isn't ready
+          if (attempt >= 5) {
+            console.log('Address exists, proceeding with verification attempt...');
+            contractIndexed = true;
+            break;
+          }
+        }
       }
     } catch {
       // Ignore errors
     }
-    console.log(`Waiting for indexing... attempt ${attempt + 1}/10`);
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log(`Waiting for indexing... attempt ${attempt + 1}/20`);
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between attempts
   }
 
   if (!contractIndexed) {
-    console.log('Contract not indexed yet, proceeding anyway...');
+    console.log('Contract not indexed yet after 60 seconds');
+    return {
+      success: false,
+      message: 'Contract not indexed yet. Ramascan needs more time to index new contracts. Please wait 1-2 minutes and try again.',
+      manualVerificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '/verify-via-flattened-code/new',
+      verificationUrl: RAMASCAN_BASE + '/address/' + contractAddress + '?tab=contract'
+    };
   }
 
   // Try V2 API first (more reliable for Blockscout)

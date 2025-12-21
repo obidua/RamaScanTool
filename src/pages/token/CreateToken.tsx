@@ -695,6 +695,17 @@ export default function CreateToken() {
                     </div>
                     
                     <div className="flex flex-wrap gap-2">
+                      {/* Try Again Button */}
+                      <button
+                        onClick={() => {
+                          setVerificationStatus('idle');
+                          setVerificationMessage('');
+                        }}
+                        className="btn-primary flex items-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Try Again
+                      </button>
                       {manualVerifyUrl && (
                         <a
                           href={manualVerifyUrl}
