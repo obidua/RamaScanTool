@@ -253,18 +253,33 @@ async function submitVerificationV2(
     };
 
     console.log('Submitting verification via V2 API for:', contractAddress);
+    console.log('V2 URL:', url);
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: JSON.stringify(body)
     });
 
+    console.log('V2 Response status:', response.status);
     const data = await response.json();
     console.log('V2 API Response:', data);
 
-    if (response.ok && data.message?.includes('started')) {
-      return { success: true, message: 'Verification started!' };
+    // V2 API returns success message when verification starts
+    if (response.ok) {
+      if (data.message?.toLowerCase().includes('started') || 
+          data.message?.toLowerCase().includes('success')) {
+        return { success: true, message: 'Verification started!' };
+      }
+      // Some V2 responses indicate success differently
+      if (!data.message?.toLowerCase().includes('error') && 
+          !data.message?.toLowerCase().includes('failed') &&
+          !data.message?.toLowerCase().includes('missing')) {
+        return { success: true, message: data.message || 'Verification submitted!' };
+      }
     }
 
     if (data.message?.toLowerCase().includes('already verified')) {
