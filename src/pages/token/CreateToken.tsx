@@ -631,7 +631,7 @@ export default function CreateToken() {
                     
                     setIsVerifying(true);
                     setVerificationStatus('pending');
-                    setVerificationMessage('Starting automatic verification...');
+                    setVerificationMessage('Waiting for contract to be indexed (this may take up to 30 seconds)...');
                     
                     try {
                       const result = await verifyTokenContract({

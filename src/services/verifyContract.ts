@@ -378,6 +378,29 @@ export async function verifyTokenContract(params: VerificationParams): Promise<V
     };
   }
 
+  // Wait for contract to be indexed by the blockchain explorer
+  // This is necessary because just-deployed contracts need time to be indexed
+  console.log('Waiting for contract to be indexed...');
+  let contractIndexed = false;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      const response = await fetch(`${RAMASCAN_API_V2}/smart-contracts/${contractAddress}`);
+      if (response.status !== 404) {
+        contractIndexed = true;
+        console.log('Contract indexed after', (attempt + 1) * 3, 'seconds');
+        break;
+      }
+    } catch {
+      // Ignore errors
+    }
+    console.log(`Waiting for indexing... attempt ${attempt + 1}/10`);
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+
+  if (!contractIndexed) {
+    console.log('Contract not indexed yet, proceeding anyway...');
+  }
+
   // Try V2 API first (more reliable for Blockscout)
   console.log('Attempting V2 API verification...');
   const v2Result = await submitVerificationV2(contractAddress, FLATTENED_SOURCE);
