@@ -283,33 +283,66 @@ export default function VanityAddressGenerator() {
       <div className="glass-card p-4 md:p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <label className="input-label">Address Prefix</label>
+            <label className="input-label">Address Prefix (after 0x)</label>
             <div className="flex items-center gap-2">
-              <span className="text-slate-500 font-mono">0x</span>
+              <span className="text-slate-500 font-mono text-lg">0x</span>
               <input
                 type="text"
                 value={prefix}
-                onChange={(e) => setPrefix(e.target.value.replace(/[^a-fA-F0-9]/g, '').slice(0, 8))}
-                placeholder="abc"
-                maxLength={8}
-                className="input-field font-mono"
+                onChange={(e) => setPrefix(e.target.value.replace(/[^a-fA-F0-9]/g, '').slice(0, 6))}
+                placeholder="dead"
+                maxLength={6}
+                className="input-field font-mono uppercase"
                 disabled={isGenerating}
               />
             </div>
-            <p className="text-xs text-slate-500 mt-1">Hex characters only (0-9, a-f)</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Valid: <span className="text-cyan-400 font-mono">0 1 2 3 4 5 6 7 8 9 a b c d e f</span>
+            </p>
           </div>
           <div>
-            <label className="input-label">Address Suffix</label>
+            <label className="input-label">Address Suffix (end of address)</label>
             <input
               type="text"
               value={suffix}
-              onChange={(e) => setSuffix(e.target.value.replace(/[^a-fA-F0-9]/g, '').slice(0, 8))}
-              placeholder="xyz"
-              maxLength={8}
-              className="input-field font-mono"
+              onChange={(e) => setSuffix(e.target.value.replace(/[^a-fA-F0-9]/g, '').slice(0, 6))}
+              placeholder="beef"
+              maxLength={6}
+              className="input-field font-mono uppercase"
               disabled={isGenerating}
             />
-            <p className="text-xs text-slate-500 mt-1">Hex characters only (0-9, a-f)</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Valid: <span className="text-cyan-400 font-mono">0 1 2 3 4 5 6 7 8 9 a b c d e f</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Examples */}
+        <div className="mb-4 p-3 bg-slate-800/50 rounded-xl">
+          <p className="text-xs text-slate-400 mb-2">📝 Popular patterns (click to use):</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { prefix: 'dead', suffix: '', label: '0xdead...' },
+              { prefix: 'cafe', suffix: '', label: '0xcafe...' },
+              { prefix: 'beef', suffix: '', label: '0xbeef...' },
+              { prefix: '', suffix: '0000', label: '...0000' },
+              { prefix: '', suffix: 'dead', label: '...dead' },
+              { prefix: 'aaa', suffix: 'aaa', label: '0xaaa...aaa' },
+              { prefix: '123', suffix: '', label: '0x123...' },
+              { prefix: '', suffix: '420', label: '...420' },
+            ].map((pattern, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setPrefix(pattern.prefix)
+                  setSuffix(pattern.suffix)
+                }}
+                disabled={isGenerating}
+                className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs font-mono text-slate-300 disabled:opacity-50"
+              >
+                {pattern.label}
+              </button>
+            ))}
           </div>
         </div>
 
