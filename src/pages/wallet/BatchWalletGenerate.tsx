@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Plus, Download, Copy, Loader2, RefreshCw, Eye, EyeOff, AlertTriangle, Shield, Key } from 'lucide-react'
+import { Plus, Download, Copy, Loader2, RefreshCw, Eye, EyeOff, AlertTriangle, Shield, Key, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { generateMnemonic, mnemonicToAccount, english } from 'viem/accounts'
+import { generateMnemonic, mnemonicToAccount, english, privateKeyToAccount } from 'viem/accounts'
 import { toHex } from 'viem'
 import BackButton from '../../components/BackButton'
 
@@ -12,9 +12,9 @@ interface GeneratedWallet {
 }
 
 const MAX_WALLETS = 100000
-const BATCH_SIZE = 500 // Generate 500 wallets before UI update (~500/sec target)
-const BATCH_DELAY = 1 // Minimal delay to prevent browser freeze
-const UI_UPDATE_INTERVAL = 100 // Update UI every 100 wallets for performance
+const BATCH_SIZE = 1000 // Process 1000 wallets before UI update
+const BATCH_DELAY = 0 // No delay for maximum speed
+const UI_UPDATE_INTERVAL = 200 // Update UI every 200 wallets
 
 export default function BatchWalletGenerate() {
   const [count, setCount] = useState(10)
@@ -26,12 +26,38 @@ export default function BatchWalletGenerate() {
   const [generationProgress, setGenerationProgress] = useState(0)
   const [generatedCount, setGeneratedCount] = useState(0)
   const [estimatedTime, setEstimatedTime] = useState('')
+  const [fastMode, setFastMode] = useState(true) // Fast mode by default
+  const [currentRate, setCurrentRate] = useState(0)
 
   const formatTime = (seconds: number): string => {
     if (seconds < 60) return `~${Math.ceil(seconds)}s`
     const mins = Math.floor(seconds / 60)
     const secs = Math.ceil(seconds % 60)
     return `~${mins}m ${secs}s`
+  }
+
+  // Generate random bytes for private key (much faster than BIP-39)
+  const generateRandomPrivateKey = (): `0x${string}` => {
+    const bytes = new Uint8Array(32)
+    crypto.getRandomValues(bytes)
+    return toHex(bytes) as `0x${string}`
+  }
+
+  // Parallel HD wallet generation using multiple iterations per batch
+  const generateHDWalletsBatch = async (batchSize: number): Promise<GeneratedWallet[]> => {
+    const results: GeneratedWallet[] = []
+    for (let i = 0; i < batchSize; i++) {
+      const mnemonic = generateMnemonic(english)
+      const account = mnemonicToAccount(mnemonic)
+      const privateKeyBytes = account.getHdKey().privateKey
+      const privateKeyHex = privateKeyBytes ? toHex(privateKeyBytes) : ''
+      results.push({
+        address: account.address,
+        privateKey: privateKeyHex,
+        mnemonic: mnemonic,
+      })
+    }
+    return results
   }
 
   const generateWallets = async () => {
@@ -45,6 +71,7 @@ export default function BatchWalletGenerate() {
     setGeneratedCount(0)
     setWallets([])
     setEstimatedTime('')
+    setCurrentRate(0)
 
     const newWallets: GeneratedWallet[] = []
     const prefixLower = prefix.toLowerCase().replace('0x', '')
@@ -53,85 +80,88 @@ export default function BatchWalletGenerate() {
     const startTime = Date.now()
 
     try {
-      if (hasVanity) {
-        // Vanity address generation - need to try multiple times
-        const maxAttempts = count * 100000 // Scale attempts with count
-        let attempts = 0
-
-        while (newWallets.length < count && attempts < maxAttempts) {
-          // Generate a 12-word mnemonic phrase
-          const mnemonic = generateMnemonic(english)
-          const account = mnemonicToAccount(mnemonic)
-          const addressLower = account.address.toLowerCase()
-
-          const matchesPrefix = !prefixLower || addressLower.slice(2).startsWith(prefixLower)
-          const matchesSuffix = !suffixLower || addressLower.endsWith(suffixLower)
-
-          if (matchesPrefix && matchesSuffix) {
-            const privateKeyBytes = account.getHdKey().privateKey
-            const privateKeyHex = privateKeyBytes ? toHex(privateKeyBytes) : ''
-            
-            newWallets.push({
-              address: account.address,
-              privateKey: privateKeyHex,
-              mnemonic: mnemonic,
-            })
-            
-            const progress = Math.round((newWallets.length / count) * 100)
-            setGenerationProgress(progress)
-            setGeneratedCount(newWallets.length)
-            
-            // Calculate ETA
-            const elapsed = (Date.now() - startTime) / 1000
-            const rate = newWallets.length / elapsed
-            const remaining = (count - newWallets.length) / rate
-            setEstimatedTime(formatTime(remaining))
-          }
-
-          attempts++
-
-          // Yield to UI periodically with delay
-          if (attempts % 500 === 0) {
-            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY))
-          }
-
-          if (attempts >= maxAttempts && newWallets.length < count) {
-            toast.error(`Only found ${newWallets.length} matching addresses. Try a shorter prefix/suffix.`)
-            break
-          }
-        }
-      } else {
-        // Normal generation - optimized for ~500 wallets/sec
+      if (fastMode) {
+        // Fast mode - random private keys (super fast)
         for (let i = 0; i < count; i++) {
-          const mnemonic = generateMnemonic(english)
-          const account = mnemonicToAccount(mnemonic)
+          const privateKey = generateRandomPrivateKey()
+          const account = privateKeyToAccount(privateKey)
           
-          const privateKeyBytes = account.getHdKey().privateKey
-          const privateKeyHex = privateKeyBytes ? toHex(privateKeyBytes) : ''
-
+          if (hasVanity) {
+            const addressLower = account.address.toLowerCase()
+            const matchesPrefix = !prefixLower || addressLower.slice(2).startsWith(prefixLower)
+            const matchesSuffix = !suffixLower || addressLower.endsWith(suffixLower)
+            if (!matchesPrefix || !matchesSuffix) {
+              i-- // Retry
+              continue
+            }
+          }
+          
           newWallets.push({
             address: account.address,
-            privateKey: privateKeyHex,
-            mnemonic: mnemonic,
+            privateKey: privateKey,
+            mnemonic: '(Fast mode - no recovery phrase)',
           })
 
-          // Update UI only every UI_UPDATE_INTERVAL wallets for performance
           if ((i + 1) % UI_UPDATE_INTERVAL === 0 || i === count - 1) {
             const progress = Math.round(((i + 1) / count) * 100)
             setGenerationProgress(progress)
             setGeneratedCount(i + 1)
             
-            // Calculate ETA
             const elapsed = (Date.now() - startTime) / 1000
             const rate = (i + 1) / elapsed
+            setCurrentRate(Math.round(rate))
             const remaining = (count - (i + 1)) / rate
             if (remaining > 0) setEstimatedTime(formatTime(remaining))
           }
 
-          // Yield to browser every BATCH_SIZE wallets with minimal delay
           if ((i + 1) % BATCH_SIZE === 0) {
             await new Promise(resolve => setTimeout(resolve, BATCH_DELAY))
           }
+        }
+      } else {
+        // HD wallet mode - optimized with larger batches and less UI updates
+        const CHUNK_SIZE = 50 // Generate 50 wallets per chunk for ~200/sec target
+        let generated = 0
+        
+        while (generated < count) {
+          const remaining = count - generated
+          const batchSize = Math.min(CHUNK_SIZE, remaining)
+          
+          // Generate a batch of HD wallets
+          const batchResults = await generateHDWalletsBatch(batchSize)
+          
+          if (hasVanity) {
+            // Filter for vanity matches
+            for (const wallet of batchResults) {
+              const addressLower = wallet.address.toLowerCase()
+              const matchesPrefix = !prefixLower || addressLower.slice(2).startsWith(prefixLower)
+              const matchesSuffix = !suffixLower || addressLower.endsWith(suffixLower)
+              if (matchesPrefix && matchesSuffix) {
+                newWallets.push(wallet)
+                if (newWallets.length >= count) break
+              }
+            }
+            generated = newWallets.length
+          } else {
+            newWallets.push(...batchResults)
+            generated += batchSize
+          }
+          
+          // Update UI
+          const progress = Math.round((generated / count) * 100)
+          setGenerationProgress(progress)
+          setGeneratedCount(generated)
+          
+          const elapsed = (Date.now() - startTime) / 1000
+          if (elapsed > 0) {
+            const rate = generated / elapsed
+            setCurrentRate(Math.round(rate))
+            const remainingTime = (count - generated) / rate
+            if (remainingTime > 0) setEstimatedTime(formatTime(remainingTime))
+          }
+          
+          // Yield to browser for smooth UI
+          await new Promise(resolve => setTimeout(resolve, 0))
         }
       }
 
@@ -140,7 +170,8 @@ export default function BatchWalletGenerate() {
       
       if (newWallets.length > 0) {
         const duration = ((Date.now() - startTime) / 1000).toFixed(1)
-        toast.success(`Generated ${newWallets.length.toLocaleString()} wallets in ${duration}s!`)
+        const finalRate = Math.round(newWallets.length / parseFloat(duration))
+        toast.success(`Generated ${newWallets.length.toLocaleString()} wallets in ${duration}s (${finalRate.toLocaleString()}/sec)!`)
       }
     } catch (error) {
       console.error('Wallet generation error:', error)
@@ -264,11 +295,32 @@ export default function BatchWalletGenerate() {
         </div>
 
         {/* Network Badge */}
-        <div className="mb-6 flex items-center gap-2">
-          <span className="text-sm text-slate-400">Network:</span>
-          <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium flex items-center gap-2">
-            🔷 Ramestta (Chain ID: 1370)
-          </span>
+        <div className="mb-6 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-400">Network:</span>
+            <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium flex items-center gap-2">
+              🔷 Ramestta (Chain ID: 1370)
+            </span>
+          </div>
+          
+          {/* Fast Mode Toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setFastMode(!fastMode)}
+              disabled={isGenerating}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                fastMode 
+                  ? 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400' 
+                  : 'bg-slate-700/50 border border-slate-600 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              <Zap className={`w-4 h-4 ${fastMode ? 'text-yellow-400' : ''}`} />
+              Fast Mode {fastMode ? 'ON' : 'OFF'}
+            </button>
+            <span className="text-xs text-slate-500">
+              {fastMode ? '⚡ ~5,000+ wallets/sec (no recovery phrase)' : '� ~200 wallets/sec (with recovery phrase)'}
+            </span>
+          </div>
         </div>
 
         {/* Progress Bar - shows during generation */}
@@ -277,6 +329,7 @@ export default function BatchWalletGenerate() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-slate-400">
                 Generating wallets... {generatedCount.toLocaleString()} / {count.toLocaleString()}
+                {currentRate > 0 && <span className="text-yellow-400 ml-2">⚡ {currentRate.toLocaleString()}/sec</span>}
               </span>
               <span className="text-sm text-cyan-400 font-mono">
                 {generationProgress}% {estimatedTime && `• ETA: ${estimatedTime}`}
@@ -284,12 +337,14 @@ export default function BatchWalletGenerate() {
             </div>
             <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full transition-all duration-300 ease-out"
+                className={`h-full rounded-full transition-all duration-100 ease-out ${
+                  fastMode ? 'bg-gradient-to-r from-yellow-500 to-orange-400' : 'bg-gradient-to-r from-cyan-500 to-cyan-400'
+                }`}
                 style={{ width: `${generationProgress}%` }}
               />
             </div>
             <p className="text-xs text-slate-500 mt-2 text-center">
-              💡 Keep this tab open. Generation runs in batches to prevent browser freeze.
+              {fastMode ? '⚡ Fast Mode: Maximum speed, private keys only' : '🔐 HD Mode: Slower but includes recovery phrases'}
             </p>
           </div>
         )}
