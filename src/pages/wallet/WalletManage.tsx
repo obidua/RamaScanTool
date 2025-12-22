@@ -7,13 +7,12 @@ interface WalletItem {
   address: string
   name: string
   balance: string
-  chain: string
 }
 
 const mockWallets: WalletItem[] = [
-  { address: '0x1234...5678', name: 'Main Wallet', balance: '1500 RAMA', chain: 'Ramestta' },
-  { address: '0xabcd...efgh', name: 'Trading Wallet', balance: '1.5 ETH', chain: 'Ethereum' },
-  { address: '0x9876...5432', name: 'NFT Wallet', balance: '250 MATIC', chain: 'Polygon' },
+  { address: '0x1234...5678', name: 'Main Wallet', balance: '1,500 RAMA' },
+  { address: '0xabcd...efgh', name: 'Trading Wallet', balance: '2,500 RAMA' },
+  { address: '0x9876...5432', name: 'NFT Wallet', balance: '500 RAMA' },
 ]
 
 export default function WalletManage() {
@@ -57,7 +56,7 @@ export default function WalletManage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">{wallet.name}</h3>
-                  <span className="badge badge-chain">{wallet.chain}</span>
+                  <span className="text-xs text-cyan-400">Ramestta Network</span>
                 </div>
               </div>
               <button className="p-2 hover:bg-slate-700 rounded-lg transition-colors">

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Wallet, Coins, TrendingUp, Image, BarChart2, Wrench, 
   ChevronDown, ChevronRight, Plus, Search, Shield, Sparkles, Send, 
   Download, Lock, Settings, BarChart3, ArrowLeftRight, Bot, Images, 
-  FolderDown, Fuel, Users, Globe, Server, Binary, FileSearch
+  FolderDown, Fuel, Users, Globe, Server, Binary, FileSearch, X
 } from 'lucide-react'
 import { useState } from 'react'
 import { TOOLS, TOOL_CATEGORIES } from '../config/tools'
@@ -31,7 +31,8 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const location = useLocation()
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(['wallet', 'token'])
+  // All categories collapsed by default
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([])
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => 
@@ -47,15 +48,26 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     } lg:translate-x-0`}>
       {/* Logo */}
       <div className="p-6 border-b border-slate-800">
-        <Link to="/" className="flex items-center gap-3" onClick={onClose}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-            <span className="text-2xl">🔷</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">RamaScan</h1>
-            <p className="text-xs text-cyan-500/70">Ramestta Tools</p>
-          </div>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3" onClick={onClose}>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <span className="text-2xl">🔷</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">RamaScan</h1>
+              <p className="text-xs text-cyan-500/70">Ramestta Tools</p>
+            </div>
+          </Link>
+          {/* Mobile Close Button */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 rounded-lg bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}

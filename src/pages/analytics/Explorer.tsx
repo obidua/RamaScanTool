@@ -1,20 +1,16 @@
 import { useState } from 'react'
 import { Search, ExternalLink, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { SUPPORTED_CHAINS } from '../../config/wagmi'
 import BackButton from '../../components/BackButton'
-import NetworkSelector from '../../components/NetworkSelector'
 
 interface SearchResult {
   type: 'address' | 'tx' | 'token' | 'block'
   value: string
-  chain: string
   extra?: string
 }
 
 export default function Explorer() {
   const [query, setQuery] = useState('')
-  const [selectedChain, setSelectedChain] = useState('1370')
   const [results, setResults] = useState<SearchResult[]>([])
 
   const search = async () => {
@@ -28,13 +24,10 @@ export default function Explorer() {
     if (query.length === 66) type = 'tx'
     else if (query.startsWith('0x') && query.length === 42) type = 'address'
     else if (!isNaN(Number(query))) type = 'block'
-
-    const chain = SUPPORTED_CHAINS.find(c => String(c.id) === selectedChain)?.name || 'Ethereum'
     
     setResults([{
       type,
       value: query,
-      chain,
       extra: type === 'address' ? 'Balance: 1500 RAMA' : 
              type === 'tx' ? 'Status: Success' :
              type === 'block' ? 'Transactions: 150' : undefined
@@ -49,14 +42,7 @@ export default function Explorer() {
   }
 
   const getExplorerUrl = (type: string, value: string) => {
-    const baseUrls: Record<string, string> = {
-      '1370': 'https://ramascan.com',
-      '1': 'https://etherscan.io',
-      '56': 'https://bscscan.com',
-      '137': 'https://polygonscan.com',
-      '42161': 'https://arbiscan.io',
-    }
-    const base = baseUrls[selectedChain] || baseUrls['1370']
+    const base = 'https://ramascan.com'
     const path = type === 'address' ? 'address' : type === 'tx' ? 'tx' : 'block'
     return `${base}/${path}/${value}`
   }
@@ -66,8 +52,8 @@ export default function Explorer() {
       <BackButton />
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Multi-Chain Explorer</h1>
-        <p className="text-slate-400 mt-1">Search addresses, transactions, tokens, and blocks</p>
+        <h1 className="text-2xl font-bold text-white">Ramestta Explorer</h1>
+        <p className="text-slate-400 mt-1">Search addresses, transactions, tokens, and blocks on Ramestta Network</p>
       </div>
 
       {/* Search */}
@@ -84,13 +70,6 @@ export default function Explorer() {
               onKeyDown={(e) => e.key === 'Enter' && search()}
             />
           </div>
-          <div className="w-48">
-            <label className="input-label">Network</label>
-            <NetworkSelector 
-              value={selectedChain}
-              onChange={setSelectedChain}
-            />
-          </div>
           <div className="flex items-end">
             <button onClick={search} className="btn-primary flex items-center gap-2">
               <Search className="w-5 h-5" />
@@ -100,23 +79,23 @@ export default function Explorer() {
         </div>
       </div>
 
-      {/* Quick Links */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {SUPPORTED_CHAINS.slice(0, 4).map(chain => (
-          <a
-            key={chain.id}
-            href={`https://${chain.name.toLowerCase().replace(' ', '')}scan.io`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="tool-card flex items-center justify-between group"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{chain.icon}</span>
-              <span className="font-medium text-white">{chain.name}</span>
+      {/* Ramascan Link */}
+      <div className="glass-card p-4">
+        <a
+          href="https://ramascan.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between group hover:bg-slate-800/50 p-3 rounded-lg transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔷</span>
+            <div>
+              <span className="font-medium text-white">Ramascan</span>
+              <p className="text-xs text-slate-400">Official Ramestta Block Explorer</p>
             </div>
-            <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />
-          </a>
-        ))}
+          </div>
+          <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />
+        </a>
       </div>
 
       {/* Results */}
@@ -135,7 +114,7 @@ export default function Explorer() {
                     }`}>
                       {result.type.toUpperCase()}
                     </span>
-                    <span className="badge badge-chain ml-2">{result.chain}</span>
+                    <span className="badge bg-cyan-500/20 text-cyan-400 ml-2">Ramestta</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button

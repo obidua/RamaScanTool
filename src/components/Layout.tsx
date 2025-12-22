@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 
@@ -9,13 +9,15 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-[60] p-2 rounded-lg bg-slate-800 border border-slate-700 text-white"
-      >
-        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
+      {/* Mobile Menu Button - Only show when sidebar is closed */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="lg:hidden fixed top-4 left-4 z-[60] p-2 rounded-lg bg-slate-800 border border-slate-700 text-white"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      )}
 
       {/* Mobile Overlay */}
       {sidebarOpen && (

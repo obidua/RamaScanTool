@@ -1,9 +1,50 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Bell, Search, Sun, Moon } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+// Fetch RAMA price from CoinGecko
+const useRamaPrice = () => {
+  const [price, setPrice] = useState<number | null>(null)
+  const [priceChange, setPriceChange] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const response = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=ramestta&vs_currencies=usd&include_24hr_change=true'
+        )
+        const data = await response.json()
+        if (data.ramestta) {
+          setPrice(data.ramestta.usd)
+          setPriceChange(data.ramestta.usd_24h_change || 0)
+        }
+      } catch (error) {
+        console.error('Failed to fetch RAMA price:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPrice()
+    // Refresh price every 60 seconds
+    const interval = setInterval(fetchPrice, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return { price, priceChange, loading }
+}
 
 export default function Header() {
   const [isDark, setIsDark] = useState(true)
+  const { price, priceChange, loading } = useRamaPrice()
+
+  const formatPrice = (p: number | null) => {
+    if (p === null) return '---'
+    if (p < 0.01) return `$${p.toFixed(6)}`
+    if (p < 1) return `$${p.toFixed(4)}`
+    return `$${p.toFixed(2)}`
+  }
 
   return (
     <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl flex items-center justify-between px-4 md:px-6 fixed top-0 right-0 left-0 lg:left-64 z-30">
@@ -35,21 +76,33 @@ export default function Header() {
           <span className="text-sm font-medium text-cyan-400">Ramestta</span>
         </a>
 
-        {/* Price Ticker */}
-        <div className="hidden lg:flex items-center gap-4 text-sm">
+        {/* RAMA Price from CoinGecko */}
+        <a
+          href="https://www.coingecko.com/en/coins/ramestta"
+          target="_blank"
+          rel="noopener noreferrer" 
+          className="hidden lg:flex items-center gap-3 text-sm px-3 py-1.5 rounded-lg hover:bg-slate-800/50 transition-colors"
+        >
           <div className="flex items-center gap-2">
             <span className="text-cyan-400 font-medium">RAMA</span>
-            <span className="text-green-400">$0.025</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400">ETH</span>
-            <span className="text-green-400">$3,980</span>
+            {loading ? (
+              <span className="text-slate-400">Loading...</span>
+            ) : (
+              <>
+                <span className={priceChange >= 0 ? 'text-green-400' : 'text-red-400'}>
+                  {formatPrice(price)}
+                </span>
+                <span className={`text-xs ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {priceChange >= 0 ? '↑' : '↓'}{Math.abs(priceChange).toFixed(2)}%
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-slate-400">Gas</span>
             <span className="text-yellow-400">0.001 RAMA</span>
           </div>
-        </div>
+        </a>
 
         {/* Divider - hidden on mobile */}
         <div className="hidden md:block h-6 w-px bg-slate-700" />

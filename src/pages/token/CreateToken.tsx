@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Coins, Loader2, Check, ExternalLink, RefreshCw, Copy, Wallet, FileCode, ChevronDown, ChevronUp, Shield, CheckCircle } from 'lucide-react'
+import { Coins, Loader2, Check, ExternalLink, RefreshCw, Copy, Wallet, FileCode, ChevronDown, ChevronUp, Shield, CheckCircle, Zap } from 'lucide-react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useGasPrice } from 'wagmi'
 import { decodeEventLog, formatEther } from 'viem'
 import toast from 'react-hot-toast'
@@ -75,7 +75,6 @@ contract RAMA20Token is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
 export default function CreateToken() {
   const { isConnected, address: userAddress } = useAccount()
   const [step, setStep] = useState(1)
-  const [selectedChain, setSelectedChain] = useState('1370')
   const [deployedToken, setDeployedToken] = useState<{ address: string; txHash: string } | null>(null)
   const [showImportGuide, setShowImportGuide] = useState(false)
   const [showVerifyGuide, setShowVerifyGuide] = useState(false)
@@ -297,8 +296,62 @@ export default function CreateToken() {
 
       {/* Step 1: Basic Info */}
       {step === 1 && (
-        <div className="glass-card p-4 md:p-6 max-w-2xl mx-auto">
-          <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Token Information</h2>
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Info Banner */}
+          <div className="glass-card p-4 md:p-6 border border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-purple-500/5">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-500/10 rounded-xl">
+                <Coins className="w-6 h-6 text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white mb-2">What is a RAMA-20 Token?</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-4">
+                  RAMA-20 is the token standard on Ramestta Network, similar to ERC-20 on Ethereum. 
+                  It allows you to create fungible tokens that can be transferred, traded, and integrated 
+                  with DeFi applications on the Ramestta blockchain.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="p-3 bg-slate-800/50 rounded-lg">
+                    <h4 className="text-white font-medium text-sm mb-2 flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-yellow-400" />
+                      Token Types You Can Create
+                    </h4>
+                    <ul className="text-slate-400 text-xs space-y-1">
+                      <li>• <span className="text-green-400">Utility Tokens</span> - For platform access & services</li>
+                      <li>• <span className="text-blue-400">Governance Tokens</span> - For DAO voting rights</li>
+                      <li>• <span className="text-purple-400">Reward Tokens</span> - For loyalty & incentive programs</li>
+                      <li>• <span className="text-orange-400">Meme Tokens</span> - For community-driven projects</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="p-3 bg-slate-800/50 rounded-lg">
+                    <h4 className="text-white font-medium text-sm mb-2 flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-green-400" />
+                      Features Available
+                    </h4>
+                    <ul className="text-slate-400 text-xs space-y-1">
+                      <li>• <span className="text-white">Mintable</span> - Create new tokens after deployment</li>
+                      <li>• <span className="text-white">Burnable</span> - Reduce supply by burning tokens</li>
+                      <li>• <span className="text-white">Pausable</span> - Emergency pause transfers</li>
+                      <li>• <span className="text-white">Max Supply</span> - Set a hard cap limit</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <p className="text-green-400 text-xs flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span><strong>Free to create!</strong> Only pay gas fees (~0.01 RAMA). Contracts are auto-verified on Ramascan.</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Token Form */}
+          <div className="glass-card p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-semibold text-white mb-4 md:mb-6">Token Information</h2>
           
           <div className="space-y-4">
             <div>
@@ -353,7 +406,7 @@ export default function CreateToken() {
             </div>
 
             <div>
-              <NetworkSelector label="Network" value={selectedChain} onChange={setSelectedChain} />
+              <NetworkSelector label="Network" />
             </div>
           </div>
 
@@ -366,6 +419,7 @@ export default function CreateToken() {
               Next: Features
             </button>
           </div>
+        </div>
         </div>
       )}
 
