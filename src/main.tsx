@@ -7,7 +7,6 @@ import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import { Toaster } from 'react-hot-toast'
 import App from './App'
 import { config } from './config/wagmi'
-import ScrollToTop from './components/ScrollToTop'
 import InstallPrompt from './components/InstallPrompt'
 import './index.css'
 import '@rainbow-me/rainbowkit/styles.css'
@@ -25,7 +24,6 @@ createRoot(document.getElementById('root')!).render(
           fontStack: 'system',
         })}>
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <ScrollToTop />
             <App />
             <InstallPrompt />
             <Toaster 

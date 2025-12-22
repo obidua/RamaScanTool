@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
+import ScrollToTop from './components/ScrollToTop'
 import Dashboard from './pages/Dashboard'
 import WalletManage from './pages/wallet/WalletManage'
 import BatchWalletGenerate from './pages/wallet/BatchWalletGenerate'
@@ -27,7 +28,9 @@ import ChainTools from './pages/ChainTools'
 
 function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         
@@ -36,6 +39,7 @@ function App() {
           <Route path="manage" element={<WalletManage />} />
           <Route path="batch-generate" element={<BatchWalletGenerate />} />
           <Route path="batch-balance" element={<BatchCheckBalance />} />
+          <Route path="batch-check-balance" element={<BatchCheckBalance />} />
           <Route path="approval-checker" element={<ApprovalChecker />} />
           <Route path="vanity-generator" element={<VanityAddressGenerator />} />
         </Route>
@@ -81,6 +85,7 @@ function App() {
         <Route path="chain/:chainId" element={<ChainTools />} />
       </Route>
     </Routes>
+    </>
   )
 }
 

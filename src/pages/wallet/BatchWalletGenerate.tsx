@@ -262,8 +262,21 @@ export default function BatchWalletGenerate() {
               type="number"
               min="1"
               max={MAX_WALLETS}
-              value={count}
-              onChange={(e) => setCount(Math.min(MAX_WALLETS, Math.max(1, parseInt(e.target.value) || 1)))}
+              value={count || ''}
+              onChange={(e) => {
+                const val = e.target.value
+                if (val === '') {
+                  setCount(0)
+                } else {
+                  const num = parseInt(val)
+                  if (!isNaN(num)) {
+                    setCount(Math.min(MAX_WALLETS, Math.max(0, num)))
+                  }
+                }
+              }}
+              onBlur={() => {
+                if (count < 1) setCount(1)
+              }}
               className="input-field"
             />
             <p className="text-xs text-slate-500 mt-1">Max: {MAX_WALLETS.toLocaleString()} wallets</p>
