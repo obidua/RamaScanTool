@@ -96,12 +96,15 @@ export const MultiSenderABI = [
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
+  // Batch operation events
   {
     "anonymous": false,
     "inputs": [
       { "indexed": true, "internalType": "address", "name": "sender", "type": "address" },
       { "indexed": false, "internalType": "uint256", "name": "totalAmount", "type": "uint256" },
-      { "indexed": false, "internalType": "uint256", "name": "recipientCount", "type": "uint256" }
+      { "indexed": false, "internalType": "uint256", "name": "recipientCount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "fee", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
     ],
     "name": "RAMASent",
     "type": "event"
@@ -112,7 +115,9 @@ export const MultiSenderABI = [
       { "indexed": true, "internalType": "address", "name": "token", "type": "address" },
       { "indexed": true, "internalType": "address", "name": "sender", "type": "address" },
       { "indexed": false, "internalType": "uint256", "name": "totalAmount", "type": "uint256" },
-      { "indexed": false, "internalType": "uint256", "name": "recipientCount", "type": "uint256" }
+      { "indexed": false, "internalType": "uint256", "name": "recipientCount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "fee", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
     ],
     "name": "TokensSent",
     "type": "event"
@@ -122,11 +127,61 @@ export const MultiSenderABI = [
     "inputs": [
       { "indexed": true, "internalType": "address", "name": "nft", "type": "address" },
       { "indexed": true, "internalType": "address", "name": "sender", "type": "address" },
-      { "indexed": false, "internalType": "uint256", "name": "tokenCount", "type": "uint256" }
+      { "indexed": false, "internalType": "uint256", "name": "tokenCount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "fee", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
     ],
     "name": "NFTsSent",
     "type": "event"
   },
+  // Individual transfer events
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "sender", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "recipient", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "batchIndex", "type": "uint256" }
+    ],
+    "name": "RAMATransfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "token", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "sender", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "recipient", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "batchIndex", "type": "uint256" }
+    ],
+    "name": "TokenTransfer",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "nft", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "sender", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "recipient", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "batchIndex", "type": "uint256" }
+    ],
+    "name": "NFTTransfer",
+    "type": "event"
+  },
+  // Fee events
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "from", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "recipientCount", "type": "uint256" }
+    ],
+    "name": "FeeCollected",
+    "type": "event"
+  },
+  // Functions
   {
     "inputs": [
       { "internalType": "address[]", "name": "recipients", "type": "address[]" },
@@ -173,6 +228,47 @@ export const MultiSenderABI = [
   {
     "inputs": [],
     "name": "serviceFee",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getStats",
+    "outputs": [
+      { "internalType": "uint256", "name": "batches", "type": "uint256" },
+      { "internalType": "uint256", "name": "ramaSent", "type": "uint256" },
+      { "internalType": "uint256", "name": "tokensSent", "type": "uint256" },
+      { "internalType": "uint256", "name": "nftsSent", "type": "uint256" },
+      { "internalType": "uint256", "name": "feesCollected", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalBatchesSent",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalRAMASent",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalTokensSent",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalFeesCollected",
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"

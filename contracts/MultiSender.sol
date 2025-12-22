@@ -14,12 +14,30 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract MultiSender is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    event RAMASent(address indexed sender, uint256 totalAmount, uint256 recipientCount);
-    event TokensSent(address indexed token, address indexed sender, uint256 totalAmount, uint256 recipientCount);
-    event NFTsSent(address indexed nft, address indexed sender, uint256 tokenCount);
+    // Batch operation events
+    event RAMASent(address indexed sender, uint256 totalAmount, uint256 recipientCount, uint256 fee, uint256 timestamp);
+    event TokensSent(address indexed token, address indexed sender, uint256 totalAmount, uint256 recipientCount, uint256 fee, uint256 timestamp);
+    event NFTsSent(address indexed nft, address indexed sender, uint256 tokenCount, uint256 fee, uint256 timestamp);
+    
+    // Individual transfer events for detailed logging
+    event RAMATransfer(address indexed sender, address indexed recipient, uint256 amount, uint256 batchIndex);
+    event TokenTransfer(address indexed token, address indexed sender, address indexed recipient, uint256 amount, uint256 batchIndex);
+    event NFTTransfer(address indexed nft, address indexed sender, address indexed recipient, uint256 tokenId, uint256 batchIndex);
+    
+    // Fee events
+    event FeeCollected(address indexed from, uint256 amount, uint256 recipientCount);
+    event ServiceFeeUpdated(uint256 oldFee, uint256 newFee);
+    event FeeRecipientUpdated(address oldRecipient, address newRecipient);
 
     uint256 public serviceFee = 0.0001 ether; // 0.0001 RAMA per recipient
     address public feeRecipient;
+    
+    // Statistics
+    uint256 public totalBatchesSent;
+    uint256 public totalRAMASent;
+    uint256 public totalTokensSent;
+    uint256 public totalNFTsSent;
+    uint256 public totalFeesCollected;
 
     constructor() Ownable(msg.sender) {
         feeRecipient = msg.sender;
@@ -27,6 +45,7 @@ contract MultiSender is Ownable, ReentrancyGuard {
 
     /**
      * @dev Send RAMA to multiple addresses
+     * Uses call instead of transfer for better compatibility
      */
     function sendRAMA(
         address[] calldata recipients,
@@ -44,24 +63,34 @@ contract MultiSender is Ownable, ReentrancyGuard {
 
         require(msg.value >= totalAmount + totalFee, "Insufficient RAMA");
 
-        // Send to all recipients
+        // Send to all recipients using call (safer than transfer)
         for (uint256 i = 0; i < recipients.length; i++) {
             require(recipients[i] != address(0), "Invalid recipient");
-            payable(recipients[i]).transfer(amounts[i]);
+            (bool success, ) = payable(recipients[i]).call{value: amounts[i]}("");
+            require(success, "RAMA transfer failed");
+            emit RAMATransfer(msg.sender, recipients[i], amounts[i], i);
         }
 
-        // Transfer fee
+        // Transfer fee using call
         if (totalFee > 0) {
-            payable(feeRecipient).transfer(totalFee);
+            (bool feeSuccess, ) = payable(feeRecipient).call{value: totalFee}("");
+            require(feeSuccess, "Fee transfer failed");
+            totalFeesCollected += totalFee;
+            emit FeeCollected(msg.sender, totalFee, recipients.length);
         }
 
-        // Refund excess
+        // Refund excess using call
         uint256 excess = msg.value - totalAmount - totalFee;
         if (excess > 0) {
-            payable(msg.sender).transfer(excess);
+            (bool refundSuccess, ) = payable(msg.sender).call{value: excess}("");
+            require(refundSuccess, "Refund failed");
         }
 
-        emit RAMASent(msg.sender, totalAmount, recipients.length);
+        // Update statistics
+        totalBatchesSent++;
+        totalRAMASent += totalAmount;
+
+        emit RAMASent(msg.sender, totalAmount, recipients.length, totalFee, block.timestamp);
     }
 
     /**
@@ -88,15 +117,18 @@ contract MultiSender is Ownable, ReentrancyGuard {
         IERC20 tokenContract = IERC20(token);
         require(tokenContract.allowance(msg.sender, address(this)) >= totalAmount, "Insufficient allowance");
 
-        // Transfer tokens to all recipients
+        // Transfer tokens to all recipients and emit individual transfer events
         for (uint256 i = 0; i < recipients.length; i++) {
             require(recipients[i] != address(0), "Invalid recipient");
             tokenContract.safeTransferFrom(msg.sender, recipients[i], amounts[i]);
+            emit TokenTransfer(token, msg.sender, recipients[i], amounts[i], i);
         }
 
         // Transfer fee
         if (totalFee > 0) {
             payable(feeRecipient).transfer(totalFee);
+            totalFeesCollected += totalFee;
+            emit FeeCollected(msg.sender, totalFee, recipients.length);
         }
 
         // Refund excess
@@ -104,7 +136,11 @@ contract MultiSender is Ownable, ReentrancyGuard {
             payable(msg.sender).transfer(msg.value - totalFee);
         }
 
-        emit TokensSent(token, msg.sender, totalAmount, recipients.length);
+        // Update statistics
+        totalBatchesSent++;
+        totalTokensSent += totalAmount;
+
+        emit TokensSent(token, msg.sender, totalAmount, recipients.length, totalFee, block.timestamp);
     }
 
     /**
@@ -126,15 +162,18 @@ contract MultiSender is Ownable, ReentrancyGuard {
         IERC721 nftContract = IERC721(nft);
         require(nftContract.isApprovedForAll(msg.sender, address(this)), "Not approved");
 
-        // Transfer NFTs to all recipients
+        // Transfer NFTs to all recipients and emit individual transfer events
         for (uint256 i = 0; i < recipients.length; i++) {
             require(recipients[i] != address(0), "Invalid recipient");
             nftContract.safeTransferFrom(msg.sender, recipients[i], tokenIds[i]);
+            emit NFTTransfer(nft, msg.sender, recipients[i], tokenIds[i], i);
         }
 
         // Transfer fee
         if (totalFee > 0) {
             payable(feeRecipient).transfer(totalFee);
+            totalFeesCollected += totalFee;
+            emit FeeCollected(msg.sender, totalFee, recipients.length);
         }
 
         // Refund excess
@@ -142,7 +181,11 @@ contract MultiSender is Ownable, ReentrancyGuard {
             payable(msg.sender).transfer(msg.value - totalFee);
         }
 
-        emit NFTsSent(nft, msg.sender, recipients.length);
+        // Update statistics
+        totalBatchesSent++;
+        totalNFTsSent += recipients.length;
+
+        emit NFTsSent(nft, msg.sender, recipients.length, totalFee, block.timestamp);
     }
 
     /**
@@ -163,15 +206,18 @@ contract MultiSender is Ownable, ReentrancyGuard {
         IERC20 tokenContract = IERC20(token);
         require(tokenContract.allowance(msg.sender, address(this)) >= totalAmount, "Insufficient allowance");
 
-        // Transfer tokens to all recipients
+        // Transfer tokens to all recipients and emit individual transfer events
         for (uint256 i = 0; i < recipients.length; i++) {
             require(recipients[i] != address(0), "Invalid recipient");
             tokenContract.safeTransferFrom(msg.sender, recipients[i], amount);
+            emit TokenTransfer(token, msg.sender, recipients[i], amount, i);
         }
 
         // Transfer fee
         if (totalFee > 0) {
             payable(feeRecipient).transfer(totalFee);
+            totalFeesCollected += totalFee;
+            emit FeeCollected(msg.sender, totalFee, recipients.length);
         }
 
         // Refund excess
@@ -179,21 +225,41 @@ contract MultiSender is Ownable, ReentrancyGuard {
             payable(msg.sender).transfer(msg.value - totalFee);
         }
 
-        emit TokensSent(token, msg.sender, totalAmount, recipients.length);
+        // Update statistics
+        totalBatchesSent++;
+        totalTokensSent += totalAmount;
+
+        emit TokensSent(token, msg.sender, totalAmount, recipients.length, totalFee, block.timestamp);
     }
 
     // Admin functions
     function setServiceFee(uint256 fee_) external onlyOwner {
+        uint256 oldFee = serviceFee;
         serviceFee = fee_;
+        emit ServiceFeeUpdated(oldFee, fee_);
     }
 
     function setFeeRecipient(address recipient_) external onlyOwner {
         require(recipient_ != address(0), "Invalid recipient");
+        address oldRecipient = feeRecipient;
         feeRecipient = recipient_;
+        emit FeeRecipientUpdated(oldRecipient, recipient_);
     }
 
     function withdrawFees() external onlyOwner {
-        payable(feeRecipient).transfer(address(this).balance);
+        uint256 balance = address(this).balance;
+        payable(feeRecipient).transfer(balance);
+    }
+    
+    // View functions for statistics
+    function getStats() external view returns (
+        uint256 batches,
+        uint256 ramaSent,
+        uint256 tokensSent,
+        uint256 nftsSent,
+        uint256 feesCollected
+    ) {
+        return (totalBatchesSent, totalRAMASent, totalTokensSent, totalNFTsSent, totalFeesCollected);
     }
 
     // Allow contract to receive RAMA
