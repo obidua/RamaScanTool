@@ -11,6 +11,7 @@ export const TOOLS = {
     { id: 'multi-sender', name: 'Token MultiSender', icon: 'Send', path: '/token/multi-sender', badge: 'HOT', description: 'Send tokens to multiple addresses' },
     { id: 'batch-collection', name: 'Token Batch Collection', icon: 'Download', path: '/token/batch-collection', badge: null, description: 'Collect tokens from multiple wallets' },
     { id: 'locker', name: 'Token Locker', icon: 'Lock', path: '/token/locker', badge: 'HOT', description: 'Lock tokens for vesting or LP' },
+    { id: 'staking-locker', name: 'Staking Locker', icon: 'TrendingUp', path: '/token/staking-locker', badge: 'NEW', description: 'Lock with rewards for others - like staking' },
     { id: 'admin', name: 'Token Admin Panel', icon: 'Settings', path: '/token/admin', badge: null, description: 'Manage token settings' },
   ],
   trading: [

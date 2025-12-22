@@ -11,6 +11,7 @@ import CreateToken from './pages/token/CreateToken'
 import TokenMultiSender from './pages/token/TokenMultiSender'
 import TokenBatchCollection from './pages/token/TokenBatchCollection'
 import TokenLocker from './pages/token/TokenLocker'
+import StakingLocker from './pages/token/StakingLocker'
 import TokenAdminPanel from './pages/token/TokenAdminPanel'
 import MarketMaker from './pages/trading/MarketMaker'
 import BatchSwap from './pages/trading/BatchSwap'
@@ -50,6 +51,7 @@ function App() {
           <Route path="multi-sender" element={<TokenMultiSender />} />
           <Route path="batch-collection" element={<TokenBatchCollection />} />
           <Route path="locker" element={<TokenLocker />} />
+          <Route path="staking-locker" element={<StakingLocker />} />
           <Route path="admin" element={<TokenAdminPanel />} />
         </Route>
 

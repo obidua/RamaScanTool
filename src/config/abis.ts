@@ -532,3 +532,318 @@ export const ERC20ABI = [
     "type": "function"
   }
 ] as const;
+
+// StakingLocker ABI - Advanced Token Locker with rewards and beneficiary support
+export const StakingLockerABI = [
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  // Events
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "token", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "beneficiary", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "principalAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "rewardAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "dailyRewardRate", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "unlockTime", "type": "uint256" },
+      { "indexed": false, "internalType": "bool", "name": "adminCanUnlock", "type": "bool" }
+    ],
+    "name": "TokensLocked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "recipient", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "principalAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "rewardsAmount", "type": "uint256" }
+    ],
+    "name": "TokensUnlocked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "rewardsAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "RewardsAccrued",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "admin", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "recipient", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "totalAmount", "type": "uint256" }
+    ],
+    "name": "AdminUnlock",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "newUnlockTime", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "additionalRewards", "type": "uint256" }
+    ],
+    "name": "LockExtended",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "oldBeneficiary", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "newBeneficiary", "type": "address" }
+    ],
+    "name": "BeneficiaryChanged",
+    "type": "event"
+  },
+  // Write functions
+  {
+    "inputs": [
+      { "internalType": "address", "name": "token", "type": "address" },
+      { "internalType": "address", "name": "beneficiary", "type": "address" },
+      { "internalType": "uint256", "name": "principalAmount", "type": "uint256" },
+      { "internalType": "uint256", "name": "rewardAmount", "type": "uint256" },
+      { "internalType": "uint256", "name": "dailyRewardRate", "type": "uint256" },
+      { "internalType": "uint256", "name": "unlockTime", "type": "uint256" },
+      { "internalType": "bool", "name": "adminCanUnlock", "type": "bool" },
+      { "internalType": "uint8", "name": "unlockRecipient", "type": "uint8" },
+      { "internalType": "string", "name": "description", "type": "string" }
+    ],
+    "name": "createLock",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "unlockTokens",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "internalType": "uint8", "name": "recipient", "type": "uint8" }
+    ],
+    "name": "adminUnlock",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "internalType": "uint256", "name": "newUnlockTime", "type": "uint256" },
+      { "internalType": "uint256", "name": "additionalRewards", "type": "uint256" }
+    ],
+    "name": "extendLock",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "internalType": "address", "name": "newBeneficiary", "type": "address" }
+    ],
+    "name": "changeBeneficiary",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "internalType": "uint8", "name": "newRecipient", "type": "uint8" }
+    ],
+    "name": "changeUnlockRecipient",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "lockId", "type": "uint256" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "addRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "accrueRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // Read functions
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "getLock",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "address", "name": "token", "type": "address" },
+          { "internalType": "address", "name": "creator", "type": "address" },
+          { "internalType": "address", "name": "beneficiary", "type": "address" },
+          { "internalType": "uint256", "name": "principalAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "rewardAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "dailyRewardRate", "type": "uint256" },
+          { "internalType": "uint256", "name": "lockTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "unlockTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "lastRewardCalcTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "accruedRewards", "type": "uint256" },
+          { "internalType": "bool", "name": "withdrawn", "type": "bool" },
+          { "internalType": "bool", "name": "adminCanUnlock", "type": "bool" },
+          { "internalType": "bool", "name": "creatorCanClaim", "type": "bool" },
+          { "internalType": "string", "name": "description", "type": "string" },
+          { "internalType": "uint8", "name": "unlockRecipient", "type": "uint8" }
+        ],
+        "internalType": "struct StakingLocker.Lock",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "creator", "type": "address" }],
+    "name": "getLocksDetailsByCreator",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "address", "name": "token", "type": "address" },
+          { "internalType": "address", "name": "creator", "type": "address" },
+          { "internalType": "address", "name": "beneficiary", "type": "address" },
+          { "internalType": "uint256", "name": "principalAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "rewardAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "dailyRewardRate", "type": "uint256" },
+          { "internalType": "uint256", "name": "lockTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "unlockTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "lastRewardCalcTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "accruedRewards", "type": "uint256" },
+          { "internalType": "bool", "name": "withdrawn", "type": "bool" },
+          { "internalType": "bool", "name": "adminCanUnlock", "type": "bool" },
+          { "internalType": "bool", "name": "creatorCanClaim", "type": "bool" },
+          { "internalType": "string", "name": "description", "type": "string" },
+          { "internalType": "uint8", "name": "unlockRecipient", "type": "uint8" }
+        ],
+        "internalType": "struct StakingLocker.Lock[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "beneficiary", "type": "address" }],
+    "name": "getLocksDetailsByBeneficiary",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "address", "name": "token", "type": "address" },
+          { "internalType": "address", "name": "creator", "type": "address" },
+          { "internalType": "address", "name": "beneficiary", "type": "address" },
+          { "internalType": "uint256", "name": "principalAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "rewardAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "dailyRewardRate", "type": "uint256" },
+          { "internalType": "uint256", "name": "lockTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "unlockTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "lastRewardCalcTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "accruedRewards", "type": "uint256" },
+          { "internalType": "bool", "name": "withdrawn", "type": "bool" },
+          { "internalType": "bool", "name": "adminCanUnlock", "type": "bool" },
+          { "internalType": "bool", "name": "creatorCanClaim", "type": "bool" },
+          { "internalType": "string", "name": "description", "type": "string" },
+          { "internalType": "uint8", "name": "unlockRecipient", "type": "uint8" }
+        ],
+        "internalType": "struct StakingLocker.Lock[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "calculatePendingRewards",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "getClaimableAmount",
+    "outputs": [
+      { "internalType": "uint256", "name": "principal", "type": "uint256" },
+      { "internalType": "uint256", "name": "rewards", "type": "uint256" },
+      { "internalType": "uint256", "name": "total", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "isUnlockable",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "getRemainingLockTime",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "lockId", "type": "uint256" }],
+    "name": "getEstimatedTotalRewards",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lockFee",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeRecipient",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;

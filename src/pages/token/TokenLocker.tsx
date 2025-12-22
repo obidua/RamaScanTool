@@ -325,39 +325,48 @@ export default function TokenLocker() {
             </div>
 
             <div className="flex gap-4">
-              {needsApproval && (
+              {/* Step 1: Approve Button - visible when approval needed */}
+              <button
+                onClick={approveTokens}
+                disabled={isProcessing || !needsApproval || !formData.amount}
+                className={`flex-1 flex items-center justify-center gap-2 ${
+                  needsApproval && formData.amount
+                    ? 'btn-primary'
+                    : 'btn-secondary opacity-50 cursor-not-allowed'
+                }`}
+              >
+                {isApproving || isApproveConfirming ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    {isApproving ? 'Confirm...' : 'Approving...'}
+                  </>
+                ) : !needsApproval && formData.amount ? (
+                  <>✓ Approved</>
+                ) : (
+                  <>1. Approve {tokenSymbol || 'Tokens'}</>
+                )}
+              </button>
+
+              {/* Step 2: Lock Button - visible only when approved */}
+              {!needsApproval && formData.amount && (
                 <button
-                  onClick={approveTokens}
-                  disabled={isProcessing}
-                  className="flex-1 btn-secondary flex items-center justify-center gap-2"
+                  onClick={lockTokens}
+                  disabled={isProcessing || !isConnected}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2"
                 >
-                  {isApproving || isApproveConfirming ? (
+                  {isLocking || isLockConfirming ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      {isApproving ? 'Confirm...' : 'Approving...'}
+                      {isLocking ? 'Confirm...' : 'Locking...'}
                     </>
                   ) : (
-                    <>Approve {tokenSymbol || 'Tokens'}</>
+                    <>
+                      <Lock className="w-5 h-5" />
+                      2. Lock Tokens
+                    </>
                   )}
                 </button>
               )}
-              <button
-                onClick={lockTokens}
-                disabled={isProcessing || !isConnected || needsApproval}
-                className="flex-1 btn-primary flex items-center justify-center gap-2"
-              >
-                {isLocking || isLockConfirming ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    {isLocking ? 'Confirm...' : 'Locking...'}
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-5 h-5" />
-                    Lock Tokens
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>

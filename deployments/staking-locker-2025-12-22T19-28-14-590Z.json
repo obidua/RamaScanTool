@@ -1,0 +1,9 @@
+{
+  "network": "ramestta",
+  "chainId": 1370,
+  "deployer": "0xD76f707176278025dde6d76B6dD41CA908a0C1aC",
+  "timestamp": "2025-12-22T19:28:14.590Z",
+  "contracts": {
+    "StakingLocker": "0x87056d0eB07231499d78CDA3A01C4Cbe3C193252"
+  }
+}
