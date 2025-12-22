@@ -1,13 +1,16 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { Sparkles, Pause, Download, Copy, AlertTriangle, Eye, EyeOff } from 'lucide-react'
-import { privateKeyToAccount } from 'viem/accounts'
+import { mnemonicToAccount } from 'viem/accounts'
 import { toHex } from 'viem'
+import { generateMnemonic } from '@scure/bip39'
+import { wordlist } from '@scure/bip39/wordlists/english.js'
 import toast from 'react-hot-toast'
 import BackButton from '../../components/BackButton'
 
 interface VanityResult {
   address: string
   privateKey: string
+  mnemonic: string
   attempts: number
   time: string
 }
@@ -45,11 +48,15 @@ export default function VanityAddressGenerator() {
     }
   }, [prefix, suffix])
 
-  // Generate random private key
-  const generateRandomPrivateKey = (): `0x${string}` => {
-    const bytes = new Uint8Array(32)
-    crypto.getRandomValues(bytes)
-    return toHex(bytes) as `0x${string}`
+  // Generate random mnemonic and derive address
+  const generateFromMnemonic = (): { mnemonic: string; privateKey: `0x${string}`; address: string } => {
+    const mnemonic = generateMnemonic(wordlist, 128) // 12 words
+    const account = mnemonicToAccount(mnemonic)
+    return {
+      mnemonic,
+      privateKey: account.getHdKey().privateKey ? toHex(account.getHdKey().privateKey!) as `0x${string}` : '0x' as `0x${string}`,
+      address: account.address
+    }
   }
 
   // Check if address matches the pattern
@@ -100,14 +107,15 @@ export default function VanityAddressGenerator() {
 
         attemptCount++
         
-        const privateKey = generateRandomPrivateKey()
-        const account = privateKeyToAccount(privateKey)
+        // Generate with mnemonic for recovery phrase support
+        const { mnemonic, privateKey, address } = generateFromMnemonic()
         
-        if (matchesPattern(account.address)) {
+        if (matchesPattern(address)) {
           const elapsed = (Date.now() - startTimeRef.current) / 1000
           return {
-            address: account.address,
+            address: address,
             privateKey: privateKey,
+            mnemonic: mnemonic,
             attempts: attemptCount,
             time: elapsed < 1 ? `${(elapsed * 1000).toFixed(0)}ms` : `${elapsed.toFixed(1)}s`,
           }
@@ -154,7 +162,7 @@ export default function VanityAddressGenerator() {
 
   // Copy to clipboard
   const copyResult = (result: VanityResult) => {
-    const text = `Address: ${result.address}\nPrivate Key: ${result.privateKey}`
+    const text = `Address: ${result.address}\nPrivate Key: ${result.privateKey}\nRecovery Phrase: ${result.mnemonic}`
     navigator.clipboard.writeText(text)
     toast.success('Copied to clipboard!')
   }
@@ -164,6 +172,7 @@ export default function VanityAddressGenerator() {
     const data = {
       address: result.address,
       privateKey: result.privateKey,
+      mnemonic: result.mnemonic,
       attempts: result.attempts,
       time: result.time,
       generatedAt: new Date().toISOString(),
@@ -181,8 +190,8 @@ export default function VanityAddressGenerator() {
   // Download all results
   const downloadAll = () => {
     if (results.length === 0) return
-    const csv = 'Address,Private Key,Attempts,Time\n' + 
-      results.map(r => `${r.address},${r.privateKey},${r.attempts},${r.time}`).join('\n')
+    const csv = 'Address,Private Key,Recovery Phrase,Attempts,Time\n' + 
+      results.map(r => `${r.address},${r.privateKey},"${r.mnemonic}",${r.attempts},${r.time}`).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -367,59 +376,76 @@ export default function VanityAddressGenerator() {
               {showPrivateKeys ? 'Hide Keys' : 'Show Keys'}
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-800">
-                  <th className="table-header">#</th>
-                  <th className="table-header">Address</th>
-                  <th className="table-header">Private Key</th>
-                  <th className="table-header">Attempts</th>
-                  <th className="table-header">Time</th>
-                  <th className="table-header">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((result, index) => (
-                  <tr key={index} className="hover:bg-slate-800/50 border-b border-slate-800">
-                    <td className="table-cell text-slate-500">{results.length - index}</td>
-                    <td className="table-cell font-mono text-sm">
-                      <span className="text-slate-400">0x</span>
-                      <span className="text-cyan-400 font-bold">{result.address.slice(2, 2 + prefix.length)}</span>
-                      <span className="text-white">{result.address.slice(2 + prefix.length, suffix ? -suffix.length : undefined)}</span>
-                      {suffix && <span className="text-purple-400 font-bold">{result.address.slice(-suffix.length)}</span>}
-                    </td>
-                    <td className="table-cell font-mono text-sm">
-                      {showPrivateKeys ? (
-                        <span className="text-slate-300 break-all">{result.privateKey}</span>
-                      ) : (
-                        <span className="text-slate-500">{result.privateKey.slice(0, 10)}••••••••{result.privateKey.slice(-6)}</span>
-                      )}
-                    </td>
-                    <td className="table-cell text-slate-300">{result.attempts.toLocaleString()}</td>
-                    <td className="table-cell text-slate-300">{result.time}</td>
-                    <td className="table-cell">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => copyResult(result)}
-                          className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                          title="Copy"
-                        >
-                          <Copy className="w-4 h-4 text-slate-400" />
-                        </button>
-                        <button
-                          onClick={() => downloadResult(result)}
-                          className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                          title="Download"
-                        >
-                          <Download className="w-4 h-4 text-slate-400" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-4 p-4">
+            {results.map((result, index) => (
+              <div key={index} className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 text-sm">#{results.length - index}</span>
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <span>{result.attempts.toLocaleString()} attempts</span>
+                    <span>•</span>
+                    <span>{result.time}</span>
+                  </div>
+                </div>
+                
+                {/* Address */}
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Address</p>
+                  <p className="font-mono text-sm break-all">
+                    <span className="text-slate-400">0x</span>
+                    <span className="text-cyan-400 font-bold">{result.address.slice(2, 2 + prefix.length)}</span>
+                    <span className="text-white">{result.address.slice(2 + prefix.length, suffix ? -suffix.length : undefined)}</span>
+                    {suffix && <span className="text-purple-400 font-bold">{result.address.slice(-suffix.length)}</span>}
+                  </p>
+                </div>
+                
+                {/* Recovery Phrase */}
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Recovery Phrase (12 words)</p>
+                  {showPrivateKeys ? (
+                    <p className="font-mono text-sm text-green-400 bg-slate-900/50 p-2 rounded break-all">
+                      {result.mnemonic}
+                    </p>
+                  ) : (
+                    <p className="font-mono text-sm text-slate-500 bg-slate-900/50 p-2 rounded">
+                      •••••• •••••• •••••• •••••• •••••• •••••• ••••••
+                    </p>
+                  )}
+                </div>
+                
+                {/* Private Key */}
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Private Key</p>
+                  {showPrivateKeys ? (
+                    <p className="font-mono text-xs text-slate-300 bg-slate-900/50 p-2 rounded break-all">
+                      {result.privateKey}
+                    </p>
+                  ) : (
+                    <p className="font-mono text-xs text-slate-500 bg-slate-900/50 p-2 rounded">
+                      {result.privateKey.slice(0, 10)}••••••••••••••••••••••{result.privateKey.slice(-6)}
+                    </p>
+                  )}
+                </div>
+                
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-700">
+                  <button
+                    onClick={() => copyResult(result)}
+                    className="btn-secondary text-sm py-1.5 flex items-center gap-2"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy All
+                  </button>
+                  <button
+                    onClick={() => downloadResult(result)}
+                    className="btn-secondary text-sm py-1.5 flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
