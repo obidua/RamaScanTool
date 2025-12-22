@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useCallback } from 'react'
-import { Sparkles, Pause, Download, Copy, AlertTriangle, Eye, EyeOff } from 'lucide-react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { Sparkles, Pause, Download, Copy, AlertTriangle, Eye, EyeOff, Cpu, Zap } from 'lucide-react'
 import { privateKeyToAccount } from 'viem/accounts'
 import { toHex } from 'viem'
 import toast from 'react-hot-toast'
@@ -21,10 +21,14 @@ export default function VanityAddressGenerator() {
   const [attempts, setAttempts] = useState(0)
   const [rate, setRate] = useState(0)
   const [showPrivateKeys, setShowPrivateKeys] = useState(false)
+  const [workerCount, setWorkerCount] = useState(Math.max(1, navigator.hardwareConcurrency - 1 || 2))
+  const [useWorkers, setUseWorkers] = useState(true)
   
   // Use ref to control the generation loop
   const shouldStopRef = useRef(false)
   const startTimeRef = useRef(0)
+  const workersRef = useRef<Worker[]>([])
+  const totalAttemptsRef = useRef(0)
 
   const difficulty = useMemo(() => {
     const chars = (prefix.length + suffix.length)
@@ -65,7 +69,71 @@ export default function VanityAddressGenerator() {
     return matchesPrefix && matchesSuffix
   }
 
-  // Main generation function
+  // Cleanup workers on unmount
+  useEffect(() => {
+    return () => {
+      workersRef.current.forEach(w => w.terminate())
+    }
+  }, [])
+
+  // Terminate all workers
+  const terminateWorkers = () => {
+    workersRef.current.forEach(w => w.terminate())
+    workersRef.current = []
+  }
+
+  // Generate using Web Workers
+  const generateWithWorkers = useCallback(() => {
+    terminateWorkers()
+    totalAttemptsRef.current = 0
+    
+    for (let i = 0; i < workerCount; i++) {
+      const worker = new Worker('/vanity-worker.js')
+      
+      worker.onmessage = (e) => {
+        const { type, result, attempts: workerAttempts, rate: workerRate } = e.data
+        
+        if (type === 'found') {
+          // Verify the result with viem to ensure it's valid
+          try {
+            const account = privateKeyToAccount(result.privateKey as `0x${string}`)
+            if (account.address.toLowerCase() === result.address.toLowerCase()) {
+              setResults(prev => [{
+                address: account.address,
+                privateKey: result.privateKey,
+                attempts: result.attempts,
+                time: result.time
+              }, ...prev])
+              toast.success(`Found vanity address in ${result.attempts.toLocaleString()} attempts!`)
+            }
+          } catch (err) {
+            console.error('Invalid result from worker:', err)
+          }
+          terminateWorkers()
+          setIsGenerating(false)
+        } else if (type === 'progress') {
+          totalAttemptsRef.current += workerAttempts - (totalAttemptsRef.current / workerCount)
+          setAttempts(Math.round(totalAttemptsRef.current))
+          setRate(workerRate * workerCount)
+        }
+      }
+      
+      worker.onerror = (err) => {
+        console.error('Worker error:', err)
+      }
+      
+      worker.postMessage({
+        prefix,
+        suffix,
+        caseSensitive,
+        batchSize: 500
+      })
+      
+      workersRef.current.push(worker)
+    }
+  }, [prefix, suffix, caseSensitive, workerCount])
+
+  // Main generation function (fallback without workers)
   const generateVanityAddress = useCallback(async () => {
     if (!prefix && !suffix) {
       toast.error('Please enter a prefix or suffix')
@@ -84,6 +152,13 @@ export default function VanityAddressGenerator() {
     setAttempts(0)
     setRate(0)
     startTimeRef.current = Date.now()
+    totalAttemptsRef.current = 0
+
+    // Use Web Workers if enabled
+    if (useWorkers) {
+      generateWithWorkers()
+      return
+    }
 
     let attemptCount = 0
     let lastUpdateTime = Date.now()
@@ -143,11 +218,12 @@ export default function VanityAddressGenerator() {
     }
 
     setIsGenerating(false)
-  }, [prefix, suffix, caseSensitive])
+  }, [prefix, suffix, caseSensitive, useWorkers, generateWithWorkers])
 
   // Stop generation
   const stopGeneration = () => {
     shouldStopRef.current = true
+    terminateWorkers()
     setIsGenerating(false)
     toast('Generation stopped')
   }
@@ -249,6 +325,35 @@ export default function VanityAddressGenerator() {
             <span className="text-slate-300">Case Sensitive</span>
           </label>
 
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useWorkers}
+              onChange={(e) => setUseWorkers(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+              disabled={isGenerating}
+            />
+            <Zap className="w-4 h-4 text-yellow-400" />
+            <span className="text-slate-300">Turbo Mode</span>
+          </label>
+
+          {useWorkers && (
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-purple-400" />
+              <span className="text-slate-400">Threads:</span>
+              <select
+                value={workerCount}
+                onChange={(e) => setWorkerCount(parseInt(e.target.value))}
+                className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white text-sm"
+                disabled={isGenerating}
+              >
+                {[1, 2, 3, 4, 6, 8, 12, 16].filter(n => n <= navigator.hardwareConcurrency).map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {difficulty.text && (
             <div className="flex items-center gap-2">
               <span className="text-slate-400">Difficulty:</span>
@@ -260,7 +365,11 @@ export default function VanityAddressGenerator() {
         {/* Generation Stats */}
         {isGenerating && (
           <div className="mb-6 p-4 bg-slate-800/50 rounded-xl">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-slate-500">Threads</p>
+                <p className="text-xl font-bold text-purple-400">{useWorkers ? workerCount : 1}</p>
+              </div>
               <div>
                 <p className="text-xs text-slate-500">Attempts</p>
                 <p className="text-xl font-bold text-white">{attempts.toLocaleString()}</p>
