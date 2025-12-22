@@ -11,6 +11,10 @@ interface GeneratedWallet {
   mnemonic: string
 }
 
+const MAX_WALLETS = 100000
+const BATCH_SIZE = 50 // Generate in batches for smooth UI
+const BATCH_DELAY = 10 // ms delay between batches
+
 export default function BatchWalletGenerate() {
   const [count, setCount] = useState(10)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -19,27 +23,38 @@ export default function BatchWalletGenerate() {
   const [suffix, setSuffix] = useState('')
   const [showPrivateKeys, setShowPrivateKeys] = useState(false)
   const [generationProgress, setGenerationProgress] = useState(0)
+  const [generatedCount, setGeneratedCount] = useState(0)
+  const [estimatedTime, setEstimatedTime] = useState('')
+
+  const formatTime = (seconds: number): string => {
+    if (seconds < 60) return `~${Math.ceil(seconds)}s`
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.ceil(seconds % 60)
+    return `~${mins}m ${secs}s`
+  }
 
   const generateWallets = async () => {
-    if (count < 1 || count > 1000) {
-      toast.error('Please enter a number between 1 and 1000')
+    if (count < 1 || count > MAX_WALLETS) {
+      toast.error(`Please enter a number between 1 and ${MAX_WALLETS.toLocaleString()}`)
       return
     }
 
     setIsGenerating(true)
     setGenerationProgress(0)
+    setGeneratedCount(0)
     setWallets([])
+    setEstimatedTime('')
 
     const newWallets: GeneratedWallet[] = []
     const prefixLower = prefix.toLowerCase().replace('0x', '')
     const suffixLower = suffix.toLowerCase()
     const hasVanity = prefixLower || suffixLower
+    const startTime = Date.now()
 
     try {
       if (hasVanity) {
         // Vanity address generation - need to try multiple times
-        // Note: Vanity with mnemonic is slower, so we use more attempts
-        const maxAttempts = 100000
+        const maxAttempts = count * 100000 // Scale attempts with count
         let attempts = 0
 
         while (newWallets.length < count && attempts < maxAttempts) {
@@ -52,7 +67,6 @@ export default function BatchWalletGenerate() {
           const matchesSuffix = !suffixLower || addressLower.endsWith(suffixLower)
 
           if (matchesPrefix && matchesSuffix) {
-            // Get private key from the account using viem's toHex
             const privateKeyBytes = account.getHdKey().privateKey
             const privateKeyHex = privateKeyBytes ? toHex(privateKeyBytes) : ''
             
@@ -61,30 +75,36 @@ export default function BatchWalletGenerate() {
               privateKey: privateKeyHex,
               mnemonic: mnemonic,
             })
-            setGenerationProgress(Math.round((newWallets.length / count) * 100))
+            
+            const progress = Math.round((newWallets.length / count) * 100)
+            setGenerationProgress(progress)
+            setGeneratedCount(newWallets.length)
+            
+            // Calculate ETA
+            const elapsed = (Date.now() - startTime) / 1000
+            const rate = newWallets.length / elapsed
+            const remaining = (count - newWallets.length) / rate
+            setEstimatedTime(formatTime(remaining))
           }
 
           attempts++
 
-          // Yield to UI periodically
+          // Yield to UI periodically with delay
           if (attempts % 500 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0))
+            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY))
           }
 
-          // Safety check - don't run forever
           if (attempts >= maxAttempts && newWallets.length < count) {
-            toast.error(`Only found ${newWallets.length} matching addresses after ${maxAttempts} attempts. Try a shorter prefix/suffix.`)
+            toast.error(`Only found ${newWallets.length} matching addresses. Try a shorter prefix/suffix.`)
             break
           }
         }
       } else {
-        // Normal generation - just create the wallets directly with mnemonics
+        // Normal generation with batching for smooth UI
         for (let i = 0; i < count; i++) {
-          // Generate a 12-word mnemonic phrase
           const mnemonic = generateMnemonic(english)
           const account = mnemonicToAccount(mnemonic)
           
-          // Get private key from the account using viem's toHex
           const privateKeyBytes = account.getHdKey().privateKey
           const privateKeyHex = privateKeyBytes ? toHex(privateKeyBytes) : ''
 
@@ -94,19 +114,32 @@ export default function BatchWalletGenerate() {
             mnemonic: mnemonic,
           })
 
-          setGenerationProgress(Math.round(((i + 1) / count) * 100))
+          // Update progress every wallet for smooth animation
+          const progress = Math.round(((i + 1) / count) * 100)
+          setGenerationProgress(progress)
+          setGeneratedCount(i + 1)
 
-          // Yield to UI every 20 wallets for smooth progress
-          if ((i + 1) % 20 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0))
+          // Calculate and show ETA
+          if ((i + 1) % 10 === 0 || i === 0) {
+            const elapsed = (Date.now() - startTime) / 1000
+            const rate = (i + 1) / elapsed
+            const remaining = (count - (i + 1)) / rate
+            if (remaining > 0) setEstimatedTime(formatTime(remaining))
+          }
+
+          // Yield to UI with small delay every batch for smooth progress
+          if ((i + 1) % BATCH_SIZE === 0) {
+            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY))
           }
         }
       }
 
       setWallets(newWallets)
+      setEstimatedTime('')
       
       if (newWallets.length > 0) {
-        toast.success(`Generated ${newWallets.length} wallets successfully!`)
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1)
+        toast.success(`Generated ${newWallets.length.toLocaleString()} wallets in ${duration}s!`)
       }
     } catch (error) {
       console.error('Wallet generation error:', error)
@@ -115,6 +148,7 @@ export default function BatchWalletGenerate() {
 
     setIsGenerating(false)
     setGenerationProgress(0)
+    setGeneratedCount(0)
   }
 
   const copyAll = () => {
@@ -195,12 +229,12 @@ export default function BatchWalletGenerate() {
             <input
               type="number"
               min="1"
-              max="1000"
+              max={MAX_WALLETS}
               value={count}
-              onChange={(e) => setCount(Math.min(1000, Math.max(1, parseInt(e.target.value) || 1)))}
+              onChange={(e) => setCount(Math.min(MAX_WALLETS, Math.max(1, parseInt(e.target.value) || 1)))}
               className="input-field"
             />
-            <p className="text-xs text-slate-500 mt-1">Max: 1000 wallets</p>
+            <p className="text-xs text-slate-500 mt-1">Max: {MAX_WALLETS.toLocaleString()} wallets</p>
           </div>
           <div>
             <label className="input-label">Address Prefix (Optional)</label>
@@ -236,6 +270,29 @@ export default function BatchWalletGenerate() {
           </span>
         </div>
 
+        {/* Progress Bar - shows during generation */}
+        {isGenerating && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-slate-400">
+                Generating wallets... {generatedCount.toLocaleString()} / {count.toLocaleString()}
+              </span>
+              <span className="text-sm text-cyan-400 font-mono">
+                {generationProgress}% {estimatedTime && `• ETA: ${estimatedTime}`}
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${generationProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-2 text-center">
+              💡 Keep this tab open. Generation runs in batches to prevent browser freeze.
+            </p>
+          </div>
+        )}
+
         {/* Generate Button */}
         <div className="flex flex-wrap gap-3">
           <button
@@ -246,12 +303,12 @@ export default function BatchWalletGenerate() {
             {isGenerating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Generating... {generationProgress > 0 && `${generationProgress}%`}
+                Generating... {generationProgress}%
               </>
             ) : (
               <>
                 <Plus className="w-5 h-5" />
-                Generate {count} Wallet{count > 1 ? 's' : ''}
+                Generate {count.toLocaleString()} Wallet{count > 1 ? 's' : ''}
               </>
             )}
           </button>
