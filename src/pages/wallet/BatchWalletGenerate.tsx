@@ -12,8 +12,9 @@ interface GeneratedWallet {
 }
 
 const MAX_WALLETS = 100000
-const BATCH_SIZE = 50 // Generate in batches for smooth UI
-const BATCH_DELAY = 10 // ms delay between batches
+const BATCH_SIZE = 500 // Generate 500 wallets before UI update (~500/sec target)
+const BATCH_DELAY = 1 // Minimal delay to prevent browser freeze
+const UI_UPDATE_INTERVAL = 100 // Update UI every 100 wallets for performance
 
 export default function BatchWalletGenerate() {
   const [count, setCount] = useState(10)
@@ -100,7 +101,7 @@ export default function BatchWalletGenerate() {
           }
         }
       } else {
-        // Normal generation with batching for smooth UI
+        // Normal generation - optimized for ~500 wallets/sec
         for (let i = 0; i < count; i++) {
           const mnemonic = generateMnemonic(english)
           const account = mnemonicToAccount(mnemonic)
@@ -114,20 +115,20 @@ export default function BatchWalletGenerate() {
             mnemonic: mnemonic,
           })
 
-          // Update progress every wallet for smooth animation
-          const progress = Math.round(((i + 1) / count) * 100)
-          setGenerationProgress(progress)
-          setGeneratedCount(i + 1)
-
-          // Calculate and show ETA
-          if ((i + 1) % 10 === 0 || i === 0) {
+          // Update UI only every UI_UPDATE_INTERVAL wallets for performance
+          if ((i + 1) % UI_UPDATE_INTERVAL === 0 || i === count - 1) {
+            const progress = Math.round(((i + 1) / count) * 100)
+            setGenerationProgress(progress)
+            setGeneratedCount(i + 1)
+            
+            // Calculate ETA
             const elapsed = (Date.now() - startTime) / 1000
             const rate = (i + 1) / elapsed
             const remaining = (count - (i + 1)) / rate
             if (remaining > 0) setEstimatedTime(formatTime(remaining))
           }
 
-          // Yield to UI with small delay every batch for smooth progress
+          // Yield to browser every BATCH_SIZE wallets with minimal delay
           if ((i + 1) % BATCH_SIZE === 0) {
             await new Promise(resolve => setTimeout(resolve, BATCH_DELAY))
           }
