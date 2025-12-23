@@ -84,7 +84,7 @@ export default function StakingLocker() {
     query: { enabled: isAddress(formData.tokenAddress) && !!userAddress },
   })
 
-  const { data: allowance } = useReadContract({
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: formData.tokenAddress as `0x${string}`,
     abi: ERC20ABI,
     functionName: 'allowance',
@@ -137,7 +137,9 @@ export default function StakingLocker() {
   useEffect(() => {
     if (approveSuccess) {
       toast.success('Token approved!')
+      refetchAllowance()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approveSuccess])
 
   // Handle lock success
@@ -306,7 +308,10 @@ export default function StakingLocker() {
   }
 
   const myCreatedLocks = createdLocks?.filter(l => !l.withdrawn) || []
-  const myClaimableLocks = beneficiaryLocks?.filter(l => !l.withdrawn) || []
+  // For claimable, show locks where user is beneficiary but NOT the creator (to avoid duplicates)
+  const myClaimableLocks = beneficiaryLocks?.filter(l => 
+    !l.withdrawn && l.creator.toLowerCase() !== userAddress?.toLowerCase()
+  ) || []
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -750,7 +755,7 @@ function LockCard({
   canUnlock, 
   onUnlock, 
   isUnlocking, 
-  formatDate,
+  formatDate: _formatDate,
   decimals,
   showCreator = false,
 }: LockCardProps) {
@@ -766,8 +771,14 @@ function LockCard({
   // Calculate pending rewards
   const unlockTimestamp = Number(lock.unlockTime)
   const lockTimestamp = Number(lock.lockTime)
-  const totalLockDays = Math.ceil((unlockTimestamp - lockTimestamp) / 86400)
-  const elapsedDays = Math.min(totalLockDays, Math.floor((currentTimestamp - lockTimestamp) / 86400))
+  const totalLockDuration = unlockTimestamp - lockTimestamp
+  const elapsedTime = Math.min(totalLockDuration, currentTimestamp - lockTimestamp)
+  const totalLockDays = Math.ceil(totalLockDuration / 86400)
+  const elapsedDays = Math.floor(elapsedTime / 86400)
+  const remainingDays = Math.max(0, totalLockDays - elapsedDays)
+  
+  // Progress percentage
+  const progressPercent = Math.min(100, (elapsedTime / totalLockDuration) * 100)
   
   const pendingRewards = Math.min(
     (principal * (Number(lock.dailyRewardRate) / 10000) * elapsedDays),
@@ -775,7 +786,17 @@ function LockCard({
   )
   
   const estimatedTotal = accruedRewards + Math.max(0, pendingRewards)
+  const remainingRewards = Math.max(0, totalRewards - estimatedTotal)
   const totalClaimable = principal + estimatedTotal
+  
+  // Daily reward amount
+  const dailyRewardAmount = principal * (Number(lock.dailyRewardRate) / 10000)
+
+  // Format datetime with time
+  const formatDateTime = (timestamp: bigint) => {
+    const date = new Date(Number(timestamp) * 1000)
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
 
   // Update time remaining every minute
   useEffect(() => {
@@ -794,7 +815,7 @@ function LockCard({
       const minutes = Math.floor((remaining % 3600) / 60)
       
       if (days > 0) {
-        setTimeRemaining(`${days}d ${hours}h remaining`)
+        setTimeRemaining(`${days}d ${hours}h ${minutes}m remaining`)
       } else if (hours > 0) {
         setTimeRemaining(`${hours}h ${minutes}m remaining`)
       } else {
@@ -818,6 +839,7 @@ function LockCard({
 
   return (
     <div className="glass-card p-4 md:p-6">
+      {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-2 md:gap-3">
           <div className={`p-2 md:p-3 rounded-xl ${
@@ -851,6 +873,22 @@ function LockCard({
         </div>
       </div>
 
+      {/* Progress Bar */}
+      <div className="mb-4">
+        <div className="flex justify-between text-xs text-slate-400 mb-1">
+          <span>Progress</span>
+          <span>{progressPercent.toFixed(1)}%</span>
+        </div>
+        <div className="w-full bg-slate-700 rounded-full h-2">
+          <div 
+            className={`h-2 rounded-full transition-all duration-500 ${
+              isUnlockable ? 'bg-green-500' : 'bg-blue-500'
+            }`}
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
       {/* Time Remaining Banner */}
       {!isUnlockable && (
         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2 mb-4 text-center">
@@ -878,40 +916,94 @@ function LockCard({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
-        <div>
-          <p className="text-xs text-slate-500">Principal</p>
-          <p className="text-base md:text-lg font-semibold text-white">
-            {principal.toLocaleString()}
-          </p>
+      {/* Principal & Lock Details */}
+      <div className="bg-slate-800/50 rounded-lg p-3 mb-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-slate-500">Principal Locked</p>
+            <p className="text-lg font-bold text-white">
+              {principal.toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Lock ID</p>
+            <p className="text-lg font-bold text-blue-400">
+              #{lock.id.toString()}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-xs text-slate-500">Unlock Date</p>
-          <div className="flex items-center gap-1 md:gap-2">
-            <Clock className="w-3 h-3 md:w-4 md:h-4 text-slate-400" />
-            <p className="text-base md:text-lg font-semibold text-white">{formatDate(lock.unlockTime)}</p>
+      </div>
+
+      {/* Date Information */}
+      <div className="bg-slate-800/30 rounded-lg p-3 mb-4">
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <div>
+            <p className="text-slate-500 mb-1">📅 Created Date</p>
+            <p className="text-white font-medium">{formatDateTime(lock.lockTime)}</p>
+          </div>
+          <div>
+            <p className="text-slate-500 mb-1">🔓 Unlock Date</p>
+            <p className="text-white font-medium">{formatDateTime(lock.unlockTime)}</p>
+          </div>
+          <div>
+            <p className="text-slate-500 mb-1">⏱️ Lock Duration</p>
+            <p className="text-white font-medium">{totalLockDays} days</p>
+          </div>
+          <div>
+            <p className="text-slate-500 mb-1">📊 Days Elapsed</p>
+            <p className="text-white font-medium">{elapsedDays} / {totalLockDays} days</p>
           </div>
         </div>
       </div>
 
       {/* Rewards Info */}
       {dailyRate > 0 && (
-        <div className="bg-green-500/10 rounded-lg p-3 mb-4 space-y-1">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400">Reward Pool</span>
-            <span className="text-white">{totalRewards.toLocaleString()}</span>
+        <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 mb-3 border-b border-green-500/20 pb-2">
+            <Gift className="w-4 h-4 text-green-400" />
+            <span className="text-green-400 font-semibold text-sm">Reward Details</span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400">Accrued Rewards</span>
-            <span className="text-green-400">+{estimatedTotal.toFixed(4)}</span>
+          
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Total Reward Pool</span>
+              <span className="text-white font-medium">{totalRewards.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Daily Rate</span>
+              <span className="text-white font-medium">{dailyRate.toFixed(2)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Daily Reward</span>
+              <span className="text-yellow-400 font-medium">+{dailyRewardAmount.toFixed(4)}/day</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">APR</span>
+              <span className="text-green-400 font-medium">{apr.toFixed(2)}%</span>
+            </div>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-400">Daily Rate</span>
-            <span className="text-white">{dailyRate.toFixed(2)}%</span>
+          
+          <div className="border-t border-green-500/20 mt-3 pt-3 space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">✅ Accrued So Far</span>
+              <span className="text-green-400 font-semibold">+{estimatedTotal.toFixed(4)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">⏳ Remaining Rewards</span>
+              <span className="text-yellow-400 font-medium">{remainingRewards.toFixed(4)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">📈 Expected at Unlock</span>
+              <span className="text-white font-medium">{totalRewards.toLocaleString()}</span>
+            </div>
           </div>
-          <div className="border-t border-green-500/30 pt-1 mt-1 flex justify-between text-xs">
-            <span className="text-green-400 font-semibold">Total Claimable</span>
-            <span className="text-green-400 font-semibold">{totalClaimable.toLocaleString()}</span>
+          
+          <div className="border-t border-green-500/30 mt-3 pt-3">
+            <div className="flex justify-between items-center">
+              <span className="text-green-400 font-bold text-sm">💰 Total Claimable</span>
+              <span className="text-green-400 font-bold text-lg">{totalClaimable.toLocaleString()}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Principal + Accrued Rewards</p>
           </div>
         </div>
       )}
@@ -919,31 +1011,40 @@ function LockCard({
       {/* Total Claimable for non-reward locks */}
       {dailyRate === 0 && (
         <div className="bg-slate-700/30 rounded-lg p-3 mb-4">
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between items-center">
             <span className="text-slate-400">Total Claimable</span>
-            <span className="text-white font-semibold">{principal.toLocaleString()}</span>
+            <span className="text-white font-bold text-lg">{principal.toLocaleString()}</span>
           </div>
         </div>
       )}
 
-      {/* Additional Info */}
-      <div className="grid grid-cols-2 gap-2 text-xs mb-4">
-        <div className="flex items-center gap-1 text-slate-500">
-          <Users className="w-3 h-3" />
-          <span>To: {lock.beneficiary.slice(0, 6)}...{lock.beneficiary.slice(-4)}</span>
-        </div>
-        <div className="flex items-center gap-1 text-slate-500">
-          <Wallet className="w-3 h-3" />
-          <span>Pays: {getRecipientLabel(lock.unlockRecipient)}</span>
-        </div>
-        {lock.adminCanUnlock && (
-          <div className="flex items-center gap-1 text-yellow-500 col-span-2">
-            <Shield className="w-3 h-3" />
-            <span>Admin can force unlock</span>
+      {/* Addresses & Settings */}
+      <div className="bg-slate-800/30 rounded-lg p-3 mb-4">
+        <div className="grid grid-cols-1 gap-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 flex items-center gap-1">
+              <Users className="w-3 h-3" /> Beneficiary
+            </span>
+            <span className="text-white font-mono">{lock.beneficiary.slice(0, 10)}...{lock.beneficiary.slice(-8)}</span>
           </div>
-        )}
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 flex items-center gap-1">
+              <Wallet className="w-3 h-3" /> Pays To
+            </span>
+            <span className="text-blue-400">{getRecipientLabel(lock.unlockRecipient)}</span>
+          </div>
+          {lock.adminCanUnlock && (
+            <div className="flex items-center justify-between">
+              <span className="text-yellow-500 flex items-center gap-1">
+                <Shield className="w-3 h-3" /> Admin Override
+              </span>
+              <span className="text-yellow-400">Enabled</span>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Action Buttons */}
       <div className="flex gap-2">
         {canUnlock && (
           <button 
@@ -956,14 +1057,20 @@ function LockCard({
             ) : (
               <Unlock className="w-5 h-5" />
             )}
-            Claim Tokens
+            Claim {totalClaimable.toLocaleString()} Tokens
           </button>
+        )}
+        {!canUnlock && !isUnlockable && (
+          <div className="flex-1 bg-slate-700/50 rounded-lg p-3 text-center">
+            <p className="text-xs text-slate-400">⏳ {remainingDays} days until unlock</p>
+          </div>
         )}
         <a
           href={getContractUrl(lock.token)}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-secondary flex items-center gap-2"
+          title="View Token Contract"
         >
           <ExternalLink className="w-4 h-4" />
         </a>
